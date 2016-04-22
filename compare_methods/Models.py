@@ -1,6 +1,7 @@
 from sklearn import linear_model, preprocessing, ensemble, pipeline
 import numpy as np
 import multiprocessing
+import data_manipulation as dm
 
 class CitationModel:       
     def predict(self, X, year):
@@ -116,5 +117,14 @@ class RandomForestModel(CitationModel):
     
     def predict(self, X, year):
         return np.maximum(self.rfModels[year - 1].predict(X), X[[self.baseFeature]].values[:,0])
-        
-   
+
+class RPPStub(CitationModel):
+    def __init__(self, config):
+        self.name = "RPP"
+        predsFilePath = config.relPath + "rppPredictions" + config.suffixWithMinCites + ".tsv"
+        self.predictions = dm.readData(predsFilePath, header = None)
+        self.numYears = self.predictions.shape[1]
+        self.baseFeature = config.baseFeature
+
+    def predict(self, X, year):
+        return self.predictions[[year - 1]].values[:,0]

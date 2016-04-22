@@ -2,3 +2,8 @@
 *.pdf
 *.png
 *.pickle
+*.iml
+modules.xml
+vcs.xml
+.name
+misc.xml
