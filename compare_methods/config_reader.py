@@ -1,17 +1,17 @@
 import configparser
 
 class ConfigReader:
-    def __init__(self, fileName, docType, measure):
+    def __init__(self, fileName, docType, measure, minNumCitations):
         cp = configparser.ConfigParser()
         cp._interpolation = configparser.ExtendedInterpolation()
         cp.read(fileName)
-        
+
         self.window = int(cp.get("General", "window"))
         self.startYear = int(cp.get("General", "startYear"))
         self.sourceYear = int(cp.get("General", "sourceYear"))
         self.targetYear = int(cp.get("General", "targetYear"))
-        self.minNumCitations = int(cp.get("General", "minNumCitations"))
-        
+        self.minNumCitations = minNumCitations
+
         self.relPath = str(cp.get("General", "path"))
         self.suffix = "-" + "-".join(map(str, [self.startYear, self.sourceYear,
                                          self.targetYear, self.window]))

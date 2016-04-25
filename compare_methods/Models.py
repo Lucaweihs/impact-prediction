@@ -119,9 +119,15 @@ class RandomForestModel(CitationModel):
         return np.maximum(self.rfModels[year - 1].predict(X), X[[self.baseFeature]].values[:,0])
 
 class RPPStub(CitationModel):
-    def __init__(self, config):
-        self.name = "RPP"
-        predsFilePath = config.relPath + "rppPredictions" + config.suffixWithMinCites + ".tsv"
+    def __init__(self, config, withFeatures = True):
+        if withFeatures:
+            self.name = "RPP With"
+        else:
+            self.name = "RPP Without"
+        if withFeatures:
+            predsFilePath = config.relPath + "rppPredictionsWithFeatures" + config.fullSuffix + ".tsv"
+        else:
+            predsFilePath = config.relPath + "rppPredictionsWithoutFeatures" + config.fullSuffix + ".tsv"
         self.predictions = dm.readData(predsFilePath, header = None)
         self.numYears = self.predictions.shape[1]
         self.baseFeature = config.baseFeature

@@ -3,11 +3,12 @@ from data_manipulation import readData
 import numpy as np
 import sys
 
-assert(len(sys.argv) == 3)
+assert(len(sys.argv) == 4)
 
-_, docType, measure = sys.argv
+_, docType, measure, minNumCitationsString = sys.argv
+minNumCitations = int(minNumCitationsString)
 
-cr = ConfigReader("config.ini", docType, measure)
+cr = ConfigReader("config.ini", docType, measure, minNumCitations)
 
 X = readData(cr.featuresPath)
 
