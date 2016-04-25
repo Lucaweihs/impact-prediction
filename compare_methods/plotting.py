@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import numpy as np
@@ -54,25 +56,18 @@ def plotMAPEPerCount(model, X, y, year, baseFeature, fileName = None):
             plt.show()
             plt.close()
         
-def apeScatterPlot(model, X, y, year, baseFeature, fileName = None):
+def plotAPEScatter(model, X, y, year, baseFeature, fileName = None):
     baseValues = X[[baseFeature]].values[:,0]
-    minBaseValue = int(np.min(baseValues))
-    maxBaseValue = int(np.max(baseValues))
-    mapeForValue = {}
-    numObsForValue = {}
-    baseRange = range(minBaseValue, maxBaseValue + 1)
     preds = model.predict(X, year)
     allApes = (preds - y) / y
 
-    plt.scatter(np.array(mapeForValue.keys()) + 1,
-                [mapeForValue[i] for i in mapeForValue.keys()],
-                 s = s)
+    plt.scatter(baseValues,allApes, s = 5)
     plt.xlabel("Number of Citations")
-    plt.title("Mean Absolute Relative Error per Starting Citations")
+    plt.title("Relative Error per Starting Citations")
     plt.ylabel("MAPE")
     plt.xscale("log")
     if fileName != None:
-        plt.savefig("plots/" + str(k) + "-" + fileName)
+        plt.savefig("plots/" + fileName)
         plt.close()
     else:
         plt.show()

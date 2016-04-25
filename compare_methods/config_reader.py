@@ -16,6 +16,7 @@ class ConfigReader:
         self.suffix = "-" + "-".join(map(str, [self.startYear, self.sourceYear,
                                          self.targetYear, self.window]))
         self.suffixWithMinCites = "-" + str(self.minNumCitations) + self.suffix
+        self.fullSuffix = "-" + docType + "-" + measure + self.suffixWithMinCites
 
         self.docType = docType
         self.featuresPath = self.relPath + self.docType + "Features" + self.suffix + ".tsv"
@@ -32,6 +33,6 @@ class ConfigReader:
         self.citationFeature = str(cp.get(configSection, "citationFeature"))
         self.averageFeature = str(cp.get(configSection, "averageFeature"))
 
-        self.trainIndsPath = self.relPath + "trainInds" + self.suffixWithMinCites + ".tsv"
-        self.testIndsPath = self.relPath + "testInds" + self.suffixWithMinCites + ".tsv"
-        self.validIndsPath = self.relPath + "validInds" + self.suffixWithMinCites + ".tsv"
+        self.trainIndsPath = self.relPath + "trainInds" + self.fullSuffix + ".tsv"
+        self.testIndsPath = self.relPath + "testInds" + self.fullSuffix + ".tsv"
+        self.validIndsPath = self.relPath + "validInds" + self.fullSuffix + ".tsv"

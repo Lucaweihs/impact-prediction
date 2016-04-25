@@ -13,7 +13,7 @@ def runTests(config):
     trainInds, validInds, testInds = dm.getTrainValidTestIndsFromConfig(config)
     trainX, validX, _ = dm.getTrainValidTest(X, trainInds, validInds, testInds)
     trainY, validY, _ = dm.getTrainValidTest(Y, trainInds, validInds, testInds)
-    pickleSuffix = config.suffixWithMinCites + ".pickle"
+    pickleSuffix = config.fullSuffix + ".pickle"
     baseFeature = config.baseFeature
     averageFeature = config.averageFeature
 
@@ -48,14 +48,26 @@ def runTests(config):
     else:
         rf = pickle.load(open("data/rf" + pickleSuffix, "rb"))
 
-    rpp = RPPStub(config)
+    models = [plusVariableK, plusFixedK, simpleLinear, lasso, rf]
+
+    if config.measure == "citation":
+        rppWith = RPPStub(config)
+        rppWithout = RPPStub(config, False)
+        models.append(rppWith)
+        models.append(rppWithout)
     
     mapePlotFileName = "mape" + pickleSuffix.split(".")[0] + ".pdf"
-    plotMAPE([plusVariableK, plusFixedK, simpleLinear, lasso, rf, rpp], validX, validY, mapePlotFileName)
-    
+    plotMAPE(models, validX, validY, mapePlotFileName)
+
     year = Y.shape[1]
+
+    apeScatterFileName = "ape" + pickleSuffix.split(".")[0] + ".pdf"
+    plotAPEScatter(rf, validX, validY.values[:, year - 1], year, baseFeature, apeScatterFileName)
+
     mapePlotFileName = "mapePerCountRf" + pickleSuffix.split(".")[0] + ".pdf"
     plotMAPEPerCount(rf, validX, validY.values[:, year - 1], year, baseFeature, mapePlotFileName)
-    mapePlotFileName = "mapePerCountRpp" + pickleSuffix.split(".")[0] + ".pdf"
-    plotMAPEPerCount(rpp, validX, validY.values[:, year - 1], year, baseFeature, mapePlotFileName)
+    if config.measure == "citation":
+        mapePlotFileName = "mapePerCountRpp" + pickleSuffix.split(".")[0] + ".pdf"
+        plotMAPEPerCount(rppWith, validX, validY.values[:, year - 1], year, baseFeature,
+                         mapePlotFileName)
 
