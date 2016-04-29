@@ -50,7 +50,7 @@ def runTests(config):
 
     models = [plusVariableK, plusFixedK, simpleLinear, lasso, rf]
 
-    if config.measure == "citation":
+    if config.docType == "paper":
         rppWith = RPPStub(config)
         rppWithout = RPPStub(config, False)
         models.append(rppWith)
@@ -66,7 +66,7 @@ def runTests(config):
 
     mapePlotFileName = "mapePerCountRf" + pickleSuffix.split(".")[0] + ".pdf"
     plotMAPEPerCount(rf, validX, validY.values[:, year - 1], year, baseFeature, mapePlotFileName)
-    if config.measure == "citation":
+    if config.docType == "paper":
         mapePlotFileName = "mapePerCountRpp" + pickleSuffix.split(".")[0] + ".pdf"
         plotMAPEPerCount(rppWith, validX, validY.values[:, year - 1], year, baseFeature,
                          mapePlotFileName)

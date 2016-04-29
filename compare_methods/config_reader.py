@@ -1,7 +1,7 @@
 import configparser
 
 class ConfigReader:
-    def __init__(self, fileName, docType, measure, minNumCitations):
+    def __init__(self, fileName, docType, measure, minNumCitations, minAge = 0):
         cp = configparser.ConfigParser()
         cp._interpolation = configparser.ExtendedInterpolation()
         cp.read(fileName)
@@ -11,12 +11,14 @@ class ConfigReader:
         self.sourceYear = int(cp.get("General", "sourceYear"))
         self.targetYear = int(cp.get("General", "targetYear"))
         self.minNumCitations = minNumCitations
+        self.minAge = minAge
 
         self.relPath = str(cp.get("General", "path"))
         self.suffix = "-" + "-".join(map(str, [self.startYear, self.sourceYear,
                                          self.targetYear, self.window]))
-        self.suffixWithMinCites = "-" + str(self.minNumCitations) + self.suffix
-        self.fullSuffix = "-" + docType + "-" + measure + self.suffixWithMinCites
+        self.fullSuffix = "-" + docType + "-" + measure + "-" + str(self.minNumCitations) + "-" + str(minAge) + self.suffix
+        self.fullSuffixNoMeasure = "-" + docType + "-" + str(self.minNumCitations) + "-" + str(
+            minAge) + self.suffix
 
         self.docType = docType
         self.featuresPath = self.relPath + self.docType + "Features" + self.suffix + ".tsv"
@@ -32,7 +34,8 @@ class ConfigReader:
         self.baseFeature = str(cp.get(configSection, "baseFeature"))
         self.citationFeature = str(cp.get(configSection, "citationFeature"))
         self.averageFeature = str(cp.get(configSection, "averageFeature"))
+        self.ageFeature = str(cp.get(configSection, "ageFeature"))
 
-        self.trainIndsPath = self.relPath + "trainInds" + self.fullSuffix + ".tsv"
-        self.testIndsPath = self.relPath + "testInds" + self.fullSuffix + ".tsv"
-        self.validIndsPath = self.relPath + "validInds" + self.fullSuffix + ".tsv"
+        self.trainIndsPath = self.relPath + "trainInds" + self.fullSuffixNoMeasure + ".tsv"
+        self.testIndsPath = self.relPath + "testInds" + self.fullSuffixNoMeasure + ".tsv"
+        self.validIndsPath = self.relPath + "validInds" + self.fullSuffixNoMeasure + ".tsv"

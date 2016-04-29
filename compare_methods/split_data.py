@@ -3,16 +3,24 @@ from data_manipulation import readData
 import numpy as np
 import sys
 
-assert(len(sys.argv) == 4)
+assert(len(sys.argv) >= 4 and len(sys.argv) <= 5)
 
-_, docType, measure, minNumCitationsString = sys.argv
+if len(sys.argv) == 4:
+    _, docType, measure, minNumCitationsString = sys.argv
+    minAgeString = "0"
+else:
+    _, docType, measure, minNumCitationsString, minAgeString = sys.argv
+
 minNumCitations = int(minNumCitationsString)
+minAge = int(minAgeString)
 
-cr = ConfigReader("config.ini", docType, measure, minNumCitations)
+cr = ConfigReader("config.ini", docType, measure, minNumCitations, minAge)
 
 X = readData(cr.featuresPath)
 
-allInds = np.where(X[[cr.citationFeature]].values[:, 0] >= cr.minNumCitations)[0]
+allInds = np.where(
+    (X[[cr.citationFeature]].values[:, 0] >= cr.minNumCitations) & (X[[cr.ageFeature]].values[:, 0] >= cr.minAge)
+)[0]
 
 sampleSize = len(allInds)
 testSize = min(int(.2 * sampleSize), 10000)
