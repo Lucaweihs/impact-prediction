@@ -9,13 +9,14 @@ def plotMAPE(models, X, Y, fileName = None):
     colors = cm.rainbow(np.linspace(0, 1, len(models)))
     predYears = range(1, numYears + 1)
     for i in range(len(models)):
-        plt.plot(predYears, models[i].mapeAll(X, Y), color = colors[i],
+        mapes, errors = models[i].mapeAllWithErrors(X, Y)
+        plt.errorbar(predYears, mapes, yerr = 2 * errors, color = colors[i],
                  label = models[i].name, marker = 'o')
     plt.margins(x = 0.05)
     plt.legend(loc = 2)
     plt.xlabel("Years Out")
-    plt.ylabel("MAPE")
-    plt.title("Mean Absolute Relative Error")
+    plt.ylabel("% Error")
+    plt.title("Mean Absolute Precent Error")
     if fileName != None:
         plt.savefig("plots/" + fileName)
         plt.close()
@@ -38,19 +39,20 @@ def plotMAPEPerCount(model, X, y, year, baseFeature, fileName = None):
             numObsForValue[i] = inds.sum()
     sizes = []
     sizes.append([4720 * numObsForValue[k] / (1.0 * X.shape[0]) for k in mapeForValue.keys()])
-    sizes.append([40 for k in mapeForValue.keys()])
-    k = 0
+    #sizes.append([40 for k in mapeForValue.keys()])
+    #k = 0
     for s in sizes:
-        k = k + 1
+        #k = k + 1
         plt.scatter(np.array(mapeForValue.keys()) + 1,
                     [mapeForValue[i] for i in mapeForValue.keys()],
                      s = s)
         plt.xlabel("Number of Citations")
-        plt.title("Mean Absolute Relative Error per Starting Citations")
-        plt.ylabel("MAPE")
+        plt.title("Mean Absolute Percent Error per Starting Citations")
+        plt.ylabel("% Error")
         plt.xscale("log")
         if fileName != None:
-            plt.savefig("plots/" + str(k) + "-" + fileName)
+            #plt.savefig("plots/" + str(k) + "-" + fileName)
+            plt.savefig("plots/" + fileName)
             plt.close()
         else:
             plt.show()
@@ -63,8 +65,8 @@ def plotAPEScatter(model, X, y, year, baseFeature, fileName = None):
 
     plt.scatter(baseValues,allApes, s = 5)
     plt.xlabel("Number of Citations")
-    plt.title("Relative Error per Starting Citations")
-    plt.ylabel("MAPE")
+    plt.title("Mean Percent Error per Citation Count")
+    plt.ylabel("% Error")
     plt.xscale("log")
     if fileName != None:
         plt.savefig("plots/" + fileName)

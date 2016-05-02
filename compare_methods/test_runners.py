@@ -30,11 +30,11 @@ def runTests(config):
     else:
         plusFixedK = pickle.load(open("data/plusFixedK" + pickleSuffix, "rb"))
         
-    if not os.path.exists("data/simpleLinear" + pickleSuffix):
-        simpleLinear = SimpleLinearModel(trainX, trainY, baseFeature)
-        pickle.dump(simpleLinear, open("data/simpleLinear" + pickleSuffix, "wb"), protocol)
-    else:
-        simpleLinear = pickle.load(open("data/simpleLinear" + pickleSuffix, "rb"))
+    # if not os.path.exists("data/simpleLinear" + pickleSuffix):
+    #     simpleLinear = SimpleLinearModel(trainX, trainY, baseFeature)
+    #     pickle.dump(simpleLinear, open("data/simpleLinear" + pickleSuffix, "wb"), protocol)
+    # else:
+    #     simpleLinear = pickle.load(open("data/simpleLinear" + pickleSuffix, "rb"))
         
     if not os.path.exists("data/lasso" + pickleSuffix):
         lasso = LassoModel(trainX, trainY, baseFeature)
@@ -48,13 +48,15 @@ def runTests(config):
     else:
         rf = pickle.load(open("data/rf" + pickleSuffix, "rb"))
 
-    models = [plusVariableK, plusFixedK, simpleLinear, lasso, rf]
+    constant = ConstantModel(trainX, trainY, baseFeature)
+
+    models = [constant, plusVariableK, lasso, rf]
 
     if config.docType == "paper":
         rppWith = RPPStub(config)
-        rppWithout = RPPStub(config, False)
+        #rppWithout = RPPStub(config, False)
         models.append(rppWith)
-        models.append(rppWithout)
+        #models.append(rppWithout)
     
     mapePlotFileName = "mape" + pickleSuffix.split(".")[0] + ".pdf"
     plotMAPE(models, validX, validY, mapePlotFileName)
@@ -66,8 +68,11 @@ def runTests(config):
 
     mapePlotFileName = "mapePerCountRf" + pickleSuffix.split(".")[0] + ".pdf"
     plotMAPEPerCount(rf, validX, validY.values[:, year - 1], year, baseFeature, mapePlotFileName)
-    if config.docType == "paper":
-        mapePlotFileName = "mapePerCountRpp" + pickleSuffix.split(".")[0] + ".pdf"
-        plotMAPEPerCount(rppWith, validX, validY.values[:, year - 1], year, baseFeature,
-                         mapePlotFileName)
+    # if config.docType == "paper":
+    #     mapePlotFileName = "mapePerCountRppWith" + pickleSuffix.split(".")[0] + ".pdf"
+    #     plotMAPEPerCount(rppWith, validX, validY.values[:, year - 1], year,
+    #                      baseFeature, mapePlotFileName)
+    #     mapePlotFileName = "mapePerCountRppWithout" + pickleSuffix.split(".")[0] + ".pdf"
+    #     plotMAPEPerCount(rppWithout, validX, validY.values[:, year - 1], year,
+    #                      baseFeature, mapePlotFileName)
 

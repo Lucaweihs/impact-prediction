@@ -16,6 +16,13 @@ class CitationModel:
     def mape(self, X, y, year):
         inds = (y != 0)
         return np.mean(np.abs(y - self.predict(X, year))[inds] / (1.0 * y[inds]))
+
+    def mapeWithError(self, X, y, year):
+        inds = (y != 0)
+        absDiffs = np.abs(y - self.predict(X, year))[inds] / (1.0 * y[inds])
+        mape = np.mean(absDiffs)
+        sd = np.sqrt(np.var(absDiffs) / len(absDiffs))
+        return (mape, sd)
         
     def mapeAll(self, X, Y):
         mapes = np.zeros(self.numYears)
@@ -23,9 +30,27 @@ class CitationModel:
             mapes[i] = self.mape(X, Y.values[:, i], i + 1)
         return mapes
 
+    def mapeAllWithErrors(self, X, Y):
+        mapes = []
+        errors = []
+        for i in range(self.numYears):
+            mape, error = self.mapeWithError(X, Y.values[:, i], i + 1)
+            mapes.append(mape)
+            errors.append(error)
+        return (mapes, np.array(errors))
+
+class ConstantModel(CitationModel):
+    def __init__(self, X, Y, baseFeature):
+        self.name = "Constant"
+        self.baseFeature = baseFeature
+        self.numYears = Y.shape[1]
+
+    def predict(self, X, year):
+        return X[[self.baseFeature]].values[:,0]
+
 class PlusVariableKBaselineModel(CitationModel):
     def __init__(self, X, Y, baseFeature, averageFeature):
-        self.name = "Varible k Baseline"
+        self.name = "Variable k"
         self.baseFeature = baseFeature
         self.averageFeature = averageFeature
         self.numYears = Y.shape[1]
@@ -51,7 +76,7 @@ class PlusVariableKBaselineModel(CitationModel):
 
 class PlusFixedKBaselineModel(CitationModel):
     def __init__(self, X, Y, baseFeature):
-        self.name = "Fixed k Baseline"
+        self.name = "Fixed k"
         self.baseFeature = baseFeature
         self.numYears = Y.shape[1]
         
