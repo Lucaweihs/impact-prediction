@@ -29,37 +29,46 @@ def runTests(config):
         pickle.dump(plusFixedK, open("data/plusFixedK" + pickleSuffix, "wb"), protocol)
     else:
         plusFixedK = pickle.load(open("data/plusFixedK" + pickleSuffix, "rb"))
-        
+
     # if not os.path.exists("data/simpleLinear" + pickleSuffix):
     #     simpleLinear = SimpleLinearModel(trainX, trainY, baseFeature)
     #     pickle.dump(simpleLinear, open("data/simpleLinear" + pickleSuffix, "wb"), protocol)
     # else:
     #     simpleLinear = pickle.load(open("data/simpleLinear" + pickleSuffix, "rb"))
-        
+
     if not os.path.exists("data/lasso" + pickleSuffix):
         lasso = LassoModel(trainX, trainY, baseFeature)
         pickle.dump(lasso, open("data/lasso" + pickleSuffix, "wb"), protocol)
     else:
         lasso = pickle.load(open("data/lasso" + pickleSuffix, "rb"))
-        
+
     if not os.path.exists("data/rf" + pickleSuffix):
         rf = RandomForestModel(trainX, trainY, baseFeature)
         pickle.dump(rf, open("data/rf" + pickleSuffix, "wb"), protocol)
     else:
         rf = pickle.load(open("data/rf" + pickleSuffix, "rb"))
 
+    if not os.path.exists("data/gb" + pickleSuffix):
+        gb = GradientBoostModel(trainX, trainY, baseFeature)
+        pickle.dump(gb, open("data/gb" + pickleSuffix, "wb"), protocol)
+    else:
+        gb = pickle.load(open("data/gb" + pickleSuffix, "rb"))
+
     constant = ConstantModel(trainX, trainY, baseFeature)
 
-    models = [constant, plusVariableK, lasso, rf]
+    models = [constant, gb, plusVariableK, lasso, rf]
 
     if config.docType == "paper":
-        rppWith = RPPStub(config)
-        #rppWithout = RPPStub(config, False)
+        rppWith = RPPStub(config, trainX, validX)
+        rppWithout = RPPStub(config, False)
         models.append(rppWith)
-        #models.append(rppWithout)
-    
-    mapePlotFileName = "mape" + pickleSuffix.split(".")[0] + ".pdf"
-    plotMAPE(models, validX, validY, mapePlotFileName)
+        models.append(rppWithout)
+
+    mapeValidPlotFileName = "mape-valid" + pickleSuffix.split(".")[0] + ".pdf"
+    plotMAPE(models, validX, validY, mapeValidPlotFileName)
+
+    mapeTrainPlotFileName = "mape-train" + pickleSuffix.split(".")[0] + ".pdf"
+    plotMAPE(models, trainX, trainY, mapeTrainPlotFileName)
 
     year = Y.shape[1]
 
@@ -68,6 +77,12 @@ def runTests(config):
 
     mapePlotFileName = "mapePerCountRf" + pickleSuffix.split(".")[0] + ".pdf"
     plotMAPEPerCount(rf, validX, validY.values[:, year - 1], year, baseFeature, mapePlotFileName)
+
+    resPlotFileName = "rsq-valid" + pickleSuffix.split(".")[0] + ".pdf"
+    plotResError(models, validX, validY, baseFeature, resPlotFileName)
+
+    resPlotFileName = "rsq-train" + pickleSuffix.split(".")[0] + ".pdf"
+    plotResError(models, trainX, trainY, baseFeature, resPlotFileName)
     # if config.docType == "paper":
     #     mapePlotFileName = "mapePerCountRppWith" + pickleSuffix.split(".")[0] + ".pdf"
     #     plotMAPEPerCount(rppWith, validX, validY.values[:, year - 1], year,

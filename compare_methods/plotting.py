@@ -16,7 +16,7 @@ def plotMAPE(models, X, Y, fileName = None):
     plt.legend(loc = 2)
     plt.xlabel("Years Out")
     plt.ylabel("% Error")
-    plt.title("Mean Absolute Precent Error")
+    plt.title("Mean Absolute Percent Error")
     if fileName != None:
         plt.savefig("plots/" + fileName)
         plt.close()
@@ -63,9 +63,14 @@ def plotAPEScatter(model, X, y, year, baseFeature, fileName = None):
     preds = model.predict(X, year)
     allApes = (preds - y) / y
 
+    if "paper" in fileName.lower():
+        type = "Paper"
+    else:
+        type = "Author"
+
     plt.scatter(baseValues,allApes, s = 5)
     plt.xlabel("Number of Citations")
-    plt.title("Mean Percent Error per Citation Count")
+    plt.title("Percent Error per " + type)
     plt.ylabel("% Error")
     plt.xscale("log")
     if fileName != None:
@@ -74,3 +79,29 @@ def plotAPEScatter(model, X, y, year, baseFeature, fileName = None):
     else:
         plt.show()
         plt.close()
+
+def plotResError(models, X, Y, baseFeature, fileName = None):
+    baseValues = X[[baseFeature]].values[:, 0]
+    baseErrors = np.var((Y.values.T - baseValues).T, axis = 0)
+
+    numYears = Y.shape[1]
+    colors = cm.rainbow(np.linspace(0, 1, len(models)))
+    predYears = range(1, numYears + 1)
+    for i in range(len(models)):
+        preds = models[i].predictAll(X)
+        errors = np.mean(np.square(np.array(preds).T - Y.values), axis = 0)
+        relErrors = errors /  baseErrors
+        plt.plot(predYears, relErrors, color=colors[i],
+                 label=models[i].name, marker='o')
+    plt.margins(x=0.05)
+    plt.legend(loc=2)
+    plt.xlabel("Years Out")
+    plt.ylabel("Residual Squared Error")
+    plt.title("Squared error")
+    if fileName != None:
+        plt.savefig("plots/" + fileName)
+        plt.close()
+    else:
+        plt.show()
+        plt.close()
+
