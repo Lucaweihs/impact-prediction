@@ -8,3 +8,6 @@ vcs.xml
 .name
 misc.xml
 .idea
+*.out
+.DS_Store
+*~

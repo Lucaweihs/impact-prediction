@@ -18,12 +18,14 @@ def runTests(config):
     averageFeature = config.averageFeature
 
     protocol = pickle.HIGHEST_PROTOCOL
+    print("Training variable k model.\n")
     if not os.path.exists("data/plusVariableK" + pickleSuffix):
         plusVariableK = PlusVariableKBaselineModel(trainX, trainY, baseFeature, averageFeature)
         pickle.dump(plusVariableK, open("data/plusVariableK" + pickleSuffix, "wb"), protocol)
     else:
         plusVariableK = pickle.load(open("data/plusVariableK" + pickleSuffix, "rb"))
 
+    print("Training fixed k model.\n")
     if not os.path.exists("data/plusFixedK" + pickleSuffix):
         plusFixedK = PlusFixedKBaselineModel(trainX, trainY, baseFeature)
         pickle.dump(plusFixedK, open("data/plusFixedK" + pickleSuffix, "wb"), protocol)
@@ -36,31 +38,43 @@ def runTests(config):
     # else:
     #     simpleLinear = pickle.load(open("data/simpleLinear" + pickleSuffix, "rb"))
 
+    print("Training lasso model.\n")
     if not os.path.exists("data/lasso" + pickleSuffix):
         lasso = LassoModel(trainX, trainY, baseFeature)
         pickle.dump(lasso, open("data/lasso" + pickleSuffix, "wb"), protocol)
     else:
         lasso = pickle.load(open("data/lasso" + pickleSuffix, "rb"))
 
+    print("Training random forest model.\n")
     if not os.path.exists("data/rf" + pickleSuffix):
         rf = RandomForestModel(trainX, trainY, baseFeature)
         pickle.dump(rf, open("data/rf" + pickleSuffix, "wb"), protocol)
     else:
         rf = pickle.load(open("data/rf" + pickleSuffix, "rb"))
 
+    print("Training gradient boost model.\n")
     if not os.path.exists("data/gb" + pickleSuffix):
         gb = GradientBoostModel(trainX, trainY, baseFeature)
         pickle.dump(gb, open("data/gb" + pickleSuffix, "wb"), protocol)
     else:
         gb = pickle.load(open("data/gb" + pickleSuffix, "rb"))
 
+    print("Training xgboost model.\n")
+    if not os.path.exists("data/xgBoost" + pickleSuffix):
+        xgBoost = XGBoostModel(trainX, trainY, baseFeature, tuneWithCV=False)
+        pickle.dump(xgBoost, open("data/xgBoost" + pickleSuffix, "wb"), protocol)
+    else:
+        xgBoost = pickle.load(open("data/xgBoost" + pickleSuffix, "rb"))
+
+    print("Training constant model.\n")
     constant = ConstantModel(trainX, trainY, baseFeature)
 
-    models = [constant, gb, plusVariableK, lasso, rf]
+    models = [constant, xgBoost, gb, plusVariableK, lasso, rf]
 
     if config.docType == "paper":
+        print("Training RPPNet models.\n")
         rppWith = RPPStub(config, trainX, validX)
-        rppWithout = RPPStub(config, False)
+        rppWithout = RPPStub(config, trainX, validX, False)
         models.append(rppWith)
         models.append(rppWithout)
 
