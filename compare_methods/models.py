@@ -5,8 +5,10 @@ import multiprocessing
 import data_manipulation as dm
 import xgboost as xgb
 import multiprocessing as mp
+import os
+import cPickle as pickle
 
-class CitationModel:       
+class CitationModel:
     def predict(self, X, year):
         raise Exception("Unimplemented error.")
     
@@ -48,14 +50,8 @@ class ConstantModel(CitationModel):
         self.baseFeature = baseFeature
         self.numYears = Y.shape[1]
 
-        self.models = []
-        for i in range(Y.shape[1]):
-            model = linear_model.LinearRegression()
-            model.fit(X[[baseFeature]].values, Y.values[:, i])
-            self.models.append(model)
-
     def predict(self, X, year):
-        return self.models[year - 1].predict(X[[self.baseFeature]])
+        return X[[self.baseFeature]].values[:,0]
 
 class PlusVariableKBaselineModel(CitationModel):
     def __init__(self, X, Y, baseFeature, averageFeature):
@@ -107,18 +103,20 @@ class PlusFixedKBaselineModel(CitationModel):
         return np.maximum(self.linModel.predict(newX)[:,0], X[[self.baseFeature]].values[:,0])
         
 class SimpleLinearModel(CitationModel):
-    def __init__(self, X, Y, baseFeature):
+    def __init__(self, X, Y, baseFeature, deltaFeature):
         self.name = "Simple Linear"
         self.baseFeature = baseFeature
+        self.deltaFeature = deltaFeature
         self.numYears = Y.shape[1]
         self.linModels = []
         for i in range(Y.shape[1]):
             model = linear_model.LinearRegression()
-            model.fit(X.values, Y.values[:,i])
+            model.fit(X[[baseFeature, deltaFeature]].values, Y.values[:,i])
             self.linModels.append(model)
             
     def predict(self, X, year):
-        return np.maximum(self.linModels[year - 1].predict(X), X[[self.baseFeature]].values[:,0])
+        return np.maximum(self.linModels[year - 1].predict(X[[self.baseFeature, self.deltaFeature]]),
+                          X[[self.baseFeature]].values[:,0])
         
 class LassoModel(CitationModel):
     def __init__(self, X, Y, baseFeature):
@@ -189,7 +187,7 @@ def mapeScorer(estimator, X, y):
 
 
 def searchWithParameters(model, paramsToSearch, X, y):
-    model['nthread'] = 0
+    model.set_params(nthread = 0)
     gsearch = GridSearchCV(estimator=model, param_grid=paramsToSearch,
                            scoring=mapeScorer, n_jobs=mp.cpu_count(),
                            iid=False, cv=5, verbose=0)
@@ -214,6 +212,9 @@ class XGBoostModel(CitationModel):
             xgbModel = xgb.sklearn.XGBRegressor(**params)
             if tuneWithCV:
                 self.__fitModelByCV(xgbModel, X, Y[[i]].values[:,0])
+            elif os.path.exists("data/xgb-params.pickle"):
+                paramsList = pickle.load(open("data/xgb-params.pickle", "rb"))
+                xgbModel.set_params(**(paramsList[i]))
             else:
                 setNEstimatorsByCV(xgbModel, X, Y[[i]].values[:,0])
             xgbModel.set_params(nthread = mp.cpu_count())

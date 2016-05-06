@@ -24,7 +24,9 @@ def plotMAPE(models, X, Y, fileName = None):
         plt.show()
         plt.close()
 
-def plotMAPEPerCount(model, X, y, year, baseFeature, fileName = None):
+def plotMAPEPerCount(model, X, y, year, baseFeature, fileName = None,
+                     title="Mean Absolute Percent Error per Starting Citations",
+                     xlabel="Number of Citations"):
     baseValues = X[[baseFeature]].values[:,0]
     minBaseValue = int(np.min(baseValues))
     maxBaseValue = int(np.max(baseValues))
@@ -39,19 +41,15 @@ def plotMAPEPerCount(model, X, y, year, baseFeature, fileName = None):
             numObsForValue[i] = inds.sum()
     sizes = []
     sizes.append([4720 * numObsForValue[k] / (1.0 * X.shape[0]) for k in mapeForValue.keys()])
-    #sizes.append([40 for k in mapeForValue.keys()])
-    #k = 0
     for s in sizes:
-        #k = k + 1
         plt.scatter(np.array(mapeForValue.keys()) + 1,
                     [mapeForValue[i] for i in mapeForValue.keys()],
                      s = s)
-        plt.xlabel("Number of Citations")
-        plt.title("Mean Absolute Percent Error per Starting Citations")
+        plt.xlabel(xlabel)
+        plt.title(title)
         plt.ylabel("% Error")
         plt.xscale("log")
         if fileName != None:
-            #plt.savefig("plots/" + str(k) + "-" + fileName)
             plt.savefig("plots/" + fileName)
             plt.close()
         else:

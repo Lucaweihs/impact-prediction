@@ -34,6 +34,7 @@ class ConfigReader:
         self.baseFeature = str(cp.get(configSection, "baseFeature"))
         self.citationFeature = str(cp.get(configSection, "citationFeature"))
         self.averageFeature = str(cp.get(configSection, "averageFeature"))
+        self.deltaFeature = str(cp.get(configSection, "deltaFeature"))
         self.ageFeature = str(cp.get(configSection, "ageFeature"))
 
         self.trainIndsPath = self.relPath + "trainInds" + self.fullSuffixNoMeasure + ".tsv"

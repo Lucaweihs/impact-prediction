@@ -16,27 +16,28 @@ def runTests(config):
     pickleSuffix = config.fullSuffix + ".pickle"
     baseFeature = config.baseFeature
     averageFeature = config.averageFeature
+    deltaFeature = config.deltaFeature
 
     protocol = pickle.HIGHEST_PROTOCOL
-    print("Training variable k model.\n")
-    if not os.path.exists("data/plusVariableK" + pickleSuffix):
-        plusVariableK = PlusVariableKBaselineModel(trainX, trainY, baseFeature, averageFeature)
-        pickle.dump(plusVariableK, open("data/plusVariableK" + pickleSuffix, "wb"), protocol)
-    else:
-        plusVariableK = pickle.load(open("data/plusVariableK" + pickleSuffix, "rb"))
-
-    print("Training fixed k model.\n")
-    if not os.path.exists("data/plusFixedK" + pickleSuffix):
-        plusFixedK = PlusFixedKBaselineModel(trainX, trainY, baseFeature)
-        pickle.dump(plusFixedK, open("data/plusFixedK" + pickleSuffix, "wb"), protocol)
-    else:
-        plusFixedK = pickle.load(open("data/plusFixedK" + pickleSuffix, "rb"))
-
-    # if not os.path.exists("data/simpleLinear" + pickleSuffix):
-    #     simpleLinear = SimpleLinearModel(trainX, trainY, baseFeature)
-    #     pickle.dump(simpleLinear, open("data/simpleLinear" + pickleSuffix, "wb"), protocol)
+    # print("Training variable k model.\n")
+    # if not os.path.exists("data/plusVariableK" + pickleSuffix):
+    #     plusVariableK = PlusVariableKBaselineModel(trainX, trainY, baseFeature, averageFeature)
+    #     pickle.dump(plusVariableK, open("data/plusVariableK" + pickleSuffix, "wb"), protocol)
     # else:
-    #     simpleLinear = pickle.load(open("data/simpleLinear" + pickleSuffix, "rb"))
+    #     plusVariableK = pickle.load(open("data/plusVariableK" + pickleSuffix, "rb"))
+    #
+    # print("Training fixed k model.\n")
+    # if not os.path.exists("data/plusFixedK" + pickleSuffix):
+    #     plusFixedK = PlusFixedKBaselineModel(trainX, trainY, baseFeature)
+    #     pickle.dump(plusFixedK, open("data/plusFixedK" + pickleSuffix, "wb"), protocol)
+    # else:
+    #     plusFixedK = pickle.load(open("data/plusFixedK" + pickleSuffix, "rb"))
+
+    if not os.path.exists("data/simpleLinear" + pickleSuffix):
+        simpleLinear = SimpleLinearModel(trainX, trainY, baseFeature, deltaFeature)
+        pickle.dump(simpleLinear, open("data/simpleLinear" + pickleSuffix, "wb"), protocol)
+    else:
+        simpleLinear = pickle.load(open("data/simpleLinear" + pickleSuffix, "rb"))
 
     print("Training lasso model.\n")
     if not os.path.exists("data/lasso" + pickleSuffix):
@@ -69,7 +70,7 @@ def runTests(config):
     print("Training constant model.\n")
     constant = ConstantModel(trainX, trainY, baseFeature)
 
-    models = [constant, xgBoost, gb, plusVariableK, lasso, rf]
+    models = [constant, xgBoost, gb, simpleLinear, lasso, rf]
 
     if config.docType == "paper":
         print("Training RPPNet models.\n")
@@ -89,8 +90,19 @@ def runTests(config):
     apeScatterFileName = "ape" + pickleSuffix.split(".")[0] + ".pdf"
     plotAPEScatter(rf, validX, validY.values[:, year - 1], year, baseFeature, apeScatterFileName)
 
-    mapePlotFileName = "mapePerCountRf" + pickleSuffix.split(".")[0] + ".pdf"
+    mapePlotFileName = "mapePerCountXGB" + pickleSuffix.split(".")[0] + ".pdf"
     plotMAPEPerCount(rf, validX, validY.values[:, year - 1], year, baseFeature, mapePlotFileName)
+
+    perAgeTitle = "Mean Absolute Percent Error per Paper Age"
+    perAgeXLabel = "Paper Age"
+    mapePlotFileName = "mapePerAgeXGB" + pickleSuffix.split(".")[0] + ".pdf"
+    plotMAPEPerCount(xgBoost, validX, validY.values[:, year - 1], year, config.ageFeature, mapePlotFileName,
+                     title=perAgeTitle, xlabel=perAgeXLabel)
+
+    if config.docType == "paper":
+        mapePlotFileName = "mapePerAgeRPP" + pickleSuffix.split(".")[0] + ".pdf"
+        plotMAPEPerCount(rppWith, validX, validY.values[:, year - 1], year, config.ageFeature, mapePlotFileName,
+                         title=perAgeTitle, xlabel=perAgeXLabel)
 
     resPlotFileName = "rsq-valid" + pickleSuffix.split(".")[0] + ".pdf"
     plotResError(models, validX, validY, baseFeature, resPlotFileName)
