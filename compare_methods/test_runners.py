@@ -19,19 +19,6 @@ def runTests(config):
     deltaFeature = config.deltaFeature
 
     protocol = pickle.HIGHEST_PROTOCOL
-    # print("Training variable k model.\n")
-    # if not os.path.exists("data/plusVariableK" + pickleSuffix):
-    #     plusVariableK = PlusVariableKBaselineModel(trainX, trainY, baseFeature, averageFeature)
-    #     pickle.dump(plusVariableK, open("data/plusVariableK" + pickleSuffix, "wb"), protocol)
-    # else:
-    #     plusVariableK = pickle.load(open("data/plusVariableK" + pickleSuffix, "rb"))
-    #
-    # print("Training fixed k model.\n")
-    # if not os.path.exists("data/plusFixedK" + pickleSuffix):
-    #     plusFixedK = PlusFixedKBaselineModel(trainX, trainY, baseFeature)
-    #     pickle.dump(plusFixedK, open("data/plusFixedK" + pickleSuffix, "wb"), protocol)
-    # else:
-    #     plusFixedK = pickle.load(open("data/plusFixedK" + pickleSuffix, "rb"))
 
     if not os.path.exists("data/simpleLinear" + pickleSuffix):
         simpleLinear = SimpleLinearModel(trainX, trainY, baseFeature, deltaFeature)
@@ -60,17 +47,10 @@ def runTests(config):
     else:
         gb = pickle.load(open("data/gb" + pickleSuffix, "rb"))
 
-    print("Training xgboost model.\n")
-    if not os.path.exists("data/xgBoost" + pickleSuffix):
-        xgBoost = XGBoostModel(trainX, trainY, baseFeature, tuneWithCV=False)
-        pickle.dump(xgBoost, open("data/xgBoost" + pickleSuffix, "wb"), protocol)
-    else:
-        xgBoost = pickle.load(open("data/xgBoost" + pickleSuffix, "rb"))
-
     print("Training constant model.\n")
     constant = ConstantModel(trainX, trainY, baseFeature)
 
-    models = [constant, xgBoost, gb, simpleLinear, lasso, rf]
+    models = [constant, gb, simpleLinear, lasso, rf]
 
     if config.docType == "paper":
         print("Training RPPNet models.\n")
@@ -79,41 +59,37 @@ def runTests(config):
         models.append(rppWith)
         models.append(rppWithout)
 
-    mapeValidPlotFileName = "mape-valid" + pickleSuffix.split(".")[0] + ".pdf"
-    plotMAPE(models, validX, validY, mapeValidPlotFileName)
+    mapeValidPlotFileName = "mape-valid" + pickleSuffix.split(".")[0]
+    plotMAPE(models, validX, validY, mapeValidPlotFileName,
+             startingYear = config.sourceYear + 1)
 
-    mapeTrainPlotFileName = "mape-train" + pickleSuffix.split(".")[0] + ".pdf"
-    plotMAPE(models, trainX, trainY, mapeTrainPlotFileName)
+    mapeTrainPlotFileName = "mape-train" + pickleSuffix.split(".")[0]
+    plotMAPE(models, trainX, trainY, mapeTrainPlotFileName,
+             startingYear = config.sourceYear + 1)
 
     year = Y.shape[1]
 
-    apeScatterFileName = "ape" + pickleSuffix.split(".")[0] + ".pdf"
+    apeScatterFileName = "ape" + pickleSuffix.split(".")[0]
     plotAPEScatter(rf, validX, validY.values[:, year - 1], year, baseFeature, apeScatterFileName)
 
-    mapePlotFileName = "mapePerCountXGB" + pickleSuffix.split(".")[0] + ".pdf"
+    mapePlotFileName = "mapePerCountXGB" + pickleSuffix.split(".")[0]
     plotMAPEPerCount(rf, validX, validY.values[:, year - 1], year, baseFeature, mapePlotFileName)
 
     perAgeTitle = "Mean Absolute Percent Error per Paper Age"
     perAgeXLabel = "Paper Age"
-    mapePlotFileName = "mapePerAgeXGB" + pickleSuffix.split(".")[0] + ".pdf"
-    plotMAPEPerCount(xgBoost, validX, validY.values[:, year - 1], year, config.ageFeature, mapePlotFileName,
-                     title=perAgeTitle, xlabel=perAgeXLabel)
+    mapePlotFileName = "mapePerAgeXGB" + pickleSuffix.split(".")[0]
+    #plotMAPEPerCount(xgBoost, validX, validY.values[:, year - 1], year, config.ageFeature, mapePlotFileName,
+    #                 title=perAgeTitle, xlabel=perAgeXLabel)
 
     if config.docType == "paper":
-        mapePlotFileName = "mapePerAgeRPP" + pickleSuffix.split(".")[0] + ".pdf"
+        mapePlotFileName = "mapePerAgeRPP" + pickleSuffix.split(".")[0]
         plotMAPEPerCount(rppWith, validX, validY.values[:, year - 1], year, config.ageFeature, mapePlotFileName,
-                         title=perAgeTitle, xlabel=perAgeXLabel)
+                         title=perAgeTitle, xlab=perAgeXLabel)
 
-    resPlotFileName = "rsq-valid" + pickleSuffix.split(".")[0] + ".pdf"
-    plotResError(models, validX, validY, baseFeature, resPlotFileName)
+    resPlotFileName = "rsq-valid" + pickleSuffix.split(".")[0]
+    plotResError(models, validX, validY, baseFeature, resPlotFileName,
+                 startYear = config.sourceYear + 1)
 
-    resPlotFileName = "rsq-train" + pickleSuffix.split(".")[0] + ".pdf"
-    plotResError(models, trainX, trainY, baseFeature, resPlotFileName)
-    # if config.docType == "paper":
-    #     mapePlotFileName = "mapePerCountRppWith" + pickleSuffix.split(".")[0] + ".pdf"
-    #     plotMAPEPerCount(rppWith, validX, validY.values[:, year - 1], year,
-    #                      baseFeature, mapePlotFileName)
-    #     mapePlotFileName = "mapePerCountRppWithout" + pickleSuffix.split(".")[0] + ".pdf"
-    #     plotMAPEPerCount(rppWithout, validX, validY.values[:, year - 1], year,
-    #                      baseFeature, mapePlotFileName)
-
+    resPlotFileName = "rsq-train" + pickleSuffix.split(".")[0]
+    plotResError(models, trainX, trainY, baseFeature, resPlotFileName,
+                 startYear=config.sourceYear + 1)

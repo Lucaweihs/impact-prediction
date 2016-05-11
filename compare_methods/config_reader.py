@@ -1,7 +1,7 @@
 import configparser
 
 class ConfigReader:
-    def __init__(self, fileName, docType, measure, minNumCitations, minAge = 0):
+    def __init__(self, fileName, docType, measure, minNumCitations, minAge = 0, minBase = None):
         cp = configparser.ConfigParser()
         cp._interpolation = configparser.ExtendedInterpolation()
         cp.read(fileName)
@@ -12,13 +12,18 @@ class ConfigReader:
         self.targetYear = int(cp.get("General", "targetYear"))
         self.minNumCitations = minNumCitations
         self.minAge = minAge
+        self.minBase = minBase
 
         self.relPath = str(cp.get("General", "path"))
         self.suffix = "-" + "-".join(map(str, [self.startYear, self.sourceYear,
                                          self.targetYear, self.window]))
-        self.fullSuffix = "-" + docType + "-" + measure + "-" + str(self.minNumCitations) + "-" + str(minAge) + self.suffix
-        self.fullSuffixNoMeasure = "-" + docType + "-" + str(self.minNumCitations) + "-" + str(
-            minAge) + self.suffix
+        if minBase != None:
+            minBaseString = "-" + str(minBase)
+        else:
+            minBaseString = ""
+
+        self.fullSuffix = "-" + docType + "-" + measure + "-" + str(self.minNumCitations) + "-" + str(minAge) + minBaseString + self.suffix
+        self.fullSuffixNoMeasure = "-" + docType + "-" + str(self.minNumCitations) + "-" + str(minAge) + minBaseString + self.suffix
 
         self.docType = docType
         self.featuresPath = self.relPath + self.docType + "Features" + self.suffix + ".tsv"

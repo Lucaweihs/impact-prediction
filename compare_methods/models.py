@@ -152,11 +152,22 @@ class RandomForestModel(CitationModel):
 
 class GradientBoostModel(CitationModel):
     def __init__(self, X, Y, baseFeature,
-                 params = {"loss": "lad", "n_estimators": 500}):
+                 params = {"loss": "lad", "n_estimators": 500, "verbose" : 1},
+                 tuneWithCV = False):
         self.name = "Gradient Boost"
         self.baseFeature = baseFeature
         self.numYears = Y.shape[1]
         self.gbModels = []
+        if tuneWithCV:
+            gbModel = ensemble.GradientBoostingRegressor(**params)
+            print("Tuning max depth\n")
+            searchWithParameters(gbModel, {"max_depth": [2, 3, 4, 5, 6]}, X.values, Y.values[:, self.numYears - 1])
+            print("Tuning min samples\n")
+            searchWithParameters(gbModel, {"min_samples_split": [2, 3, 4],
+                                           "min_samples_leaf": [1, 2]}, X.values, Y.values[:, self.numYears - 1])
+            print("Tuning subsample percent\n")
+            searchWithParameters(gbModel, {"subsample": [.6, .7, .8, .9, 1.0]}, X.values, Y.values[:, self.numYears - 1])
+            params = gbModel.get_params()
         for i in range(Y.shape[1]):
             gbModel = ensemble.GradientBoostingRegressor(**params)
             gbModel.fit(X.values, Y.values[:,i])
@@ -187,7 +198,6 @@ def mapeScorer(estimator, X, y):
 
 
 def searchWithParameters(model, paramsToSearch, X, y):
-    model.set_params(nthread = 0)
     gsearch = GridSearchCV(estimator=model, param_grid=paramsToSearch,
                            scoring=mapeScorer, n_jobs=mp.cpu_count(),
                            iid=False, cv=5, verbose=0)
@@ -222,6 +232,7 @@ class XGBoostModel(CitationModel):
             self.xgModels.append(xgbModel)
 
     def __fitModelByCV(self, xgbModel, X, y):
+        xgbModel.set_params(nthread=0)
         setNEstimatorsByCV(xgbModel, X, y)
 
         params1 = {'max_depth': [3, 4, 5, 6, 7],
@@ -232,6 +243,7 @@ class XGBoostModel(CitationModel):
         params2 = {'gamma': [0] + (10 ** np.linspace(-3, 0, 9)).tolist()}
         searchWithParameters(xgbModel, params2, X, y)
 
+        xgbModel.set_params(nthread=0)
         setNEstimatorsByCV(xgbModel, X, y)
 
         params3 = {'subsample': [i / 10.0 for i in range(6, 10)],
