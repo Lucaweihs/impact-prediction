@@ -4,6 +4,7 @@ import math
 import os
 import cPickle as pickle
 import data_manipulation as dm
+from error_tables import *
 
 def runTests(config):
     X = dm.readData(config.featuresPath)
@@ -59,37 +60,40 @@ def runTests(config):
         models.append(rppWith)
         models.append(rppWithout)
 
-    mapeValidPlotFileName = "mape-valid" + pickleSuffix.split(".")[0]
-    plotMAPE(models, validX, validY, mapeValidPlotFileName,
-             startingYear = config.sourceYear + 1)
+    predStartYear = config.sourceYear + 1
+    mapeValidName = "mape-valid" + config.fullSuffix
+    mapesDf, errorsDf =  mape_table(models, validX, validY, predStartYear, mapeValidName)
+    plotMAPE(mapesDf, errorsDf, mapeValidName)
 
-    mapeTrainPlotFileName = "mape-train" + pickleSuffix.split(".")[0]
-    plotMAPE(models, trainX, trainY, mapeTrainPlotFileName,
-             startingYear = config.sourceYear + 1)
+    mapeTrainName = "mape-train" + config.fullSuffix
+    mapesDf, errorsDf = mape_table(models, trainX, trainY, predStartYear, mapeTrainName)
+    plotMAPE(mapesDf, errorsDf, mapeTrainName)
+
+    rsqName = "rsq-valid" + config.fullSuffix
+    rsqDfMap = rsquared_tables(models, validX, validY, baseFeature,
+                            predStartYear, rsqName)
+    plotRSquared(rsqDfMap["rsquare"], rsqName)
+
+    rsqName = "rsq-train" + config.fullSuffix
+    rsqDfMap = rsquared_tables(models, trainX, trainY, baseFeature,
+                            predStartYear, rsqName)
+    plotRSquared(rsqDfMap["rsquare"], rsqName)
 
     year = Y.shape[1]
 
-    apeScatterFileName = "ape" + pickleSuffix.split(".")[0]
+    apeScatterFileName = "ape" + config.fullSuffix
     plotAPEScatter(rf, validX, validY.values[:, year - 1], year, baseFeature, apeScatterFileName)
 
-    mapePlotFileName = "mapePerCountXGB" + pickleSuffix.split(".")[0]
+    mapePlotFileName = "mapePerCountXGB" + config.fullSuffix
     plotMAPEPerCount(rf, validX, validY.values[:, year - 1], year, baseFeature, mapePlotFileName)
 
     perAgeTitle = "Mean Absolute Percent Error per Paper Age"
     perAgeXLabel = "Paper Age"
-    mapePlotFileName = "mapePerAgeXGB" + pickleSuffix.split(".")[0]
+    mapePlotFileName = "mapePerAgeXGB" + config.fullSuffix
     #plotMAPEPerCount(xgBoost, validX, validY.values[:, year - 1], year, config.ageFeature, mapePlotFileName,
     #                 title=perAgeTitle, xlabel=perAgeXLabel)
 
     if config.docType == "paper":
-        mapePlotFileName = "mapePerAgeRPP" + pickleSuffix.split(".")[0]
+        mapePlotFileName = "mapePerAgeRPP" + config.fullSuffix
         plotMAPEPerCount(rppWith, validX, validY.values[:, year - 1], year, config.ageFeature, mapePlotFileName,
                          title=perAgeTitle, xlab=perAgeXLabel)
-
-    resPlotFileName = "rsq-valid" + pickleSuffix.split(".")[0]
-    plotResError(models, validX, validY, baseFeature, resPlotFileName,
-                 startYear = config.sourceYear + 1)
-
-    resPlotFileName = "rsq-train" + pickleSuffix.split(".")[0]
-    plotResError(models, trainX, trainY, baseFeature, resPlotFileName,
-                 startYear=config.sourceYear + 1)

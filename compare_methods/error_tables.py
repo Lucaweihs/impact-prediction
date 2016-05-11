@@ -1,21 +1,26 @@
+import numpy as np
+import pandas as pd
 
 def mape_table(models, X, Y, startingYear = 1, name = None):
     numYears = Y.shape[1]
     predYears = range(startingYear, numYears + startingYear)
 
     mapesTable = np.zeros((len(models), numYears))
+    errorsTable = np.zeros((len(models), numYears))
     for i in range(len(models)):
-        mapesTable[i, :], errors = models[i].mapeAllWithErrors(X, Y)
+        mapesTable[i, :], errorsTable[i, :] = models[i].mapeAllWithErrors(X, Y)
     mapesDf = pd.DataFrame(data=mapesTable, index=[m.name for m in models], columns=predYears)
+    errorsDf = pd.DataFrame(data=errorsTable, index=[m.name for m in models], columns=predYears)
     if name != None:
         mapesDf.to_csv("tables/" + name + ".tsv", sep="\t")
-    return mapesDf
+        errorsDf.to_csv("tables/" + "errors-" + name + ".tsv", sep="\t")
+    return (mapesDf, errorsDf)
 
 def rsquared_tables(models, X, Y, baseFeature, startingYear = 1, name = None, removeOutliers = False):
     baseValues = X[[baseFeature]].values[:, 0]
 
     numYears = Y.shape[1]
-    predYears = range(startYear, numYears + startYear)
+    predYears = range(startingYear, numYears + startingYear)
     errorsList = []
     flawedErrorsList = []
     indsToRemove = set()

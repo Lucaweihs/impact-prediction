@@ -3,36 +3,27 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import numpy as np
-import pandas as pd
 import seaborn as sns
 sns.set_style("whitegrid", {'legend.frameon': True})
 
-def plotMAPE(models, X, Y, name = None, startingYear = 1):
-    numYears = Y.shape[1]
-    colors = cm.rainbow(np.linspace(0, 1, len(models)))
-    predYears = range(startingYear, numYears + startingYear)
+def plotMAPE(mapesDf, errorsDf, name = None):
+    predYears = mapesDf.columns.values
+    modelNames = list(mapesDf.index)
+    colors = cm.rainbow(np.linspace(0, 1, len(modelNames)))
 
-    mapesTable = np.zeros((len(models), numYears))
-    for i in range(len(models)):
-        mapesTable[i, :], errors = models[i].mapeAllWithErrors(X, Y)
-        plt.errorbar(predYears, mapesTable[i,:], yerr = 2 * errors, color = colors[i],
-                 label = models[i].name, marker = 'o', markeredgecolor='black',
-                     markeredgewidth=0.5)
-    mapesDf = pd.DataFrame(data=mapesTable, index=[m.name for m in models], columns=range(1, numYears + 1))
+    for i in range(len(modelNames)):
+        plt.errorbar(predYears, mapesDf.values[i,:], yerr = 2 * errorsDf.values[i,:], color = colors[i],
+                 label = modelNames[i], marker = 'o', markeredgecolor='black', markeredgewidth=0.5)
     plt.margins(x = 0.05)
     plt.legend(loc=0, prop={'size': 20})
     plt.xlabel("Year", fontsize=20)
     plt.ylabel("Mean % Error", fontsize=20)
-    #plt.title("Mean Absolute Percent Error")
     reformatAxes()
     if name != None:
         plt.savefig("plots/" + name + ".pdf")
-        plt.close()
-        mapesDf.to_csv("tables/" + name + ".tsv", sep = "\t")
     else:
         plt.show()
-        plt.close()
-    return mapesDf
+    plt.close()
 
 def plotMAPEPerCount(model, X, y, year, baseFeature, name = None):
     baseValues = X[[baseFeature]].values[:,0]
@@ -95,66 +86,27 @@ def plotAPEScatter(model, X, y, year, baseFeature, name = None):
         plt.show()
         plt.close()
 
-def plotResError(models, X, Y, baseFeature, name = None, removeOutliers = False,
-                 title = "",
-                 startYear = 1):
-    models = [m for m in models if m.name.lower() != "constant"]
-    baseValues = X[[baseFeature]].values[:, 0]
+def plotRSquared(rsqDf, name = None):
+    rsqDf = rsqDf[rsqDf.index != "Constant"]
+    predYears = rsqDf.columns.values
+    colors = cm.rainbow(np.linspace(0, 1, rsqDf.shape[0]))
+    modelNames = rsqDf.index
 
-    numYears = Y.shape[1]
-    colors = cm.rainbow(np.linspace(0, 1, len(models)))
-    predYears = range(startYear, numYears + startYear)
-    errorsList = []
-    flawedErrorsList = []
-    indsToRemove = set()
-    for i in range(len(models)):
-        preds = np.array(models[i].predictAll(X))
-        errorsPerYear = np.square(preds.T - Y.values)
-        indsToRemove |= set([np.argmax(errorsPerYear[:,i]) for i in range(numYears)])
-        errorsList.append(errorsPerYear)
-        flawedErrorsList.append(np.square(preds.T - np.mean(Y.values, axis=0)))
-
-    if removeOutliers:
-        indsToRemove = list(indsToRemove)
-        print "Inds removed: " + str(indsToRemove)
-    else:
-        indsToRemove = []
-
-    baseErrors = np.var(np.delete((Y.values.T - baseValues).T, indsToRemove, axis=0), axis=0)
-    baseErrorsInflated = np.var(np.delete(Y.values, indsToRemove, axis=0), axis=0)
-
-    r2Table = np.zeros((len(models), numYears))
-    r2InflatedTable = np.zeros((len(models), numYears))
-    r2FlawedTable = np.zeros((len(models), numYears))
-    for i in range(len(models)):
-        errors = np.delete(errorsList[i], indsToRemove, axis=0)
-        errorMeans = np.mean(errors, axis=0)
-        r2Table[i,:] = 1.0 - errorMeans / baseErrors
-        r2InflatedTable[i,:] = 1.0 - errorMeans / baseErrorsInflated
-        r2FlawedTable[i,:] = np.mean(flawedErrorsList[i], axis=0) / baseErrorsInflated
-        plt.plot(predYears, r2Table[i,:], color=colors[i], label=models[i].name, marker='o',
+    for i in range(rsqDf.shape[0]):
+        plt.plot(predYears, rsqDf.values[i,:], color=colors[i], label=modelNames[i], marker='o',
                  markeredgecolor='black', markeredgewidth=0.5)
 
-    r2Df = pd.DataFrame(data=r2Table, index=[m.name for m in models], columns=range(1, numYears + 1))
-    r2InflatedDf = pd.DataFrame(data=r2InflatedTable, index=[m.name for m in models], columns=range(1, numYears + 1))
-    r2FlawedDf = pd.DataFrame(data=r2FlawedTable, index=[m.name for m in models], columns=range(1, numYears + 1))
     plt.margins(x=0.05)
     plt.legend(loc=0, prop={'size':20})
     plt.ylim(top = 1 + .05)
     plt.xlabel("Year", fontsize=20)
     plt.ylabel("% Variation Explained ($R^2$)", fontsize=20)
-    plt.title(title)
     reformatAxes()
     if name != None:
-        r2Df.to_csv("tables/" + name + ".tsv", sep="\t")
-        r2InflatedDf.to_csv("tables/" + "inflated-" + name + ".tsv", sep="\t")
-        r2FlawedDf.to_csv("tables/" + "flawed-" + name + ".tsv", sep="\t")
         plt.savefig("plots/" + name + ".pdf")
-        plt.close()
     else:
         plt.show()
-        plt.close()
-    return (r2Df, r2InflatedDf)
+    plt.close()
 
 def reformatAxes():
     ax = plt.gca()
