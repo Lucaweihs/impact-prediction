@@ -95,5 +95,4 @@ def runTests(config):
 
     if config.docType == "paper":
         mapePlotFileName = "mapePerAgeRPP" + config.fullSuffix
-        plotMAPEPerCount(rppWith, validX, validY.values[:, year - 1], year, config.ageFeature, mapePlotFileName,
-                         title=perAgeTitle, xlab=perAgeXLabel)
+        plotMAPEPerCount(rppWith, validX, validY.values[:, year - 1], year, config.ageFeature, mapePlotFileName)

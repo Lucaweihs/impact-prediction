@@ -194,7 +194,7 @@ def setNEstimatorsByCV(model, X, y, cv_folds=5, early_stopping_rounds=50):
 
 def mapeScorer(estimator, X, y):
     preds = estimator.predict(X)
-    return -np.mean(np.abs(preds - y) / (1.0 * y))
+    return float(-np.mean(np.abs(preds - y) / (1.0 * y)))
 
 
 def searchWithParameters(model, paramsToSearch, X, y):
@@ -258,17 +258,21 @@ class XGBoostModel(CitationModel):
         return np.maximum(self.xgModels[year - 1].predict(X), X[[self.baseFeature]].values[:, 0])
 
 class RPPStub(CitationModel):
-    def __init__(self, config, trainX, validX, withFeatures = True):
+    def __init__(self, config, trainX, validX, withFeatures = True, customSuffix = None):
         if withFeatures:
             self.name = "RPPNet"
+            toAppend = "-all"
         else:
             self.name = "RPPNet Intercept"
-        if withFeatures:
-            validPredsFilePath = config.relPath + "rppPredictions-valid-all" + config.fullSuffix + ".tsv"
-            trainPredsFilePath = config.relPath + "rppPredictions-train-all" + config.fullSuffix + ".tsv"
+            toAppend = "-none"
+
+        if customSuffix != None:
+            suffix = toAppend + customSuffix
         else:
-            validPredsFilePath = config.relPath + "rppPredictions-valid-none" + config.fullSuffix + ".tsv"
-            trainPredsFilePath = config.relPath + "rppPredictions-train-none" + config.fullSuffix + ".tsv"
+            suffix = toAppend + config.fullSuffix + ".tsv"
+
+        validPredsFilePath = config.relPath + "rppPredictions-valid" + suffix
+        trainPredsFilePath = config.relPath + "rppPredictions-train" + suffix
         self.trainX = trainX
         self.validX = validX
         self.validPreds = dm.readData(validPredsFilePath, header = None)

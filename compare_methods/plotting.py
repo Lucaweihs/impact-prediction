@@ -27,7 +27,7 @@ def plotMAPE(mapesDf, errorsDf, name = None):
 
 def plotMAPEPerCount(model, X, y, year, baseFeature, name = None):
     baseValues = X[[baseFeature]].values[:,0]
-    minBaseValue = int(np.min(baseValues))
+    minBaseValue = max(int(np.min(baseValues)), 1)
     maxBaseValue = int(np.max(baseValues))
     mapeForValue = {}
     numObsForValue = {}
@@ -65,7 +65,9 @@ def plotMAPEPerCount(model, X, y, year, baseFeature, name = None):
 def plotAPEScatter(model, X, y, year, baseFeature, name = None):
     baseValues = X[[baseFeature]].values[:,0]
     preds = model.predict(X, year)
+    nonZeroInds = np.where(y != 0)
     allApes = (preds - y) / y
+    allApes = allApes[nonZeroInds]
 
     if "citation" in baseFeature.lower():
         xlab = "Starting # Citations"
@@ -74,7 +76,7 @@ def plotAPEScatter(model, X, y, year, baseFeature, name = None):
         xlab = "Starting H-Index"
         xscale = "linear"
 
-    plt.scatter(baseValues, allApes, s=20)
+    plt.scatter(baseValues[nonZeroInds], allApes, s=20)
     plt.xlabel(xlab, fontsize=20)
     plt.ylabel("% Error", fontsize=20)
     plt.xscale(xscale)
@@ -100,7 +102,7 @@ def plotRSquared(rsqDf, name = None):
     plt.legend(loc=0, prop={'size':20})
     plt.ylim(top = 1 + .05)
     plt.xlabel("Year", fontsize=20)
-    plt.ylabel("% Variation Explained ($R^2$)", fontsize=20)
+    plt.ylabel("Past Adjusted $R^2$", fontsize=20)
     reformatAxes()
     if name != None:
         plt.savefig("plots/" + name + ".pdf")
