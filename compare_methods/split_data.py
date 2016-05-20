@@ -2,36 +2,27 @@ from config_reader import ConfigReader
 from data_manipulation import readData
 import numpy as np
 import sys
+from misc_functions import *
 
-assert(len(sys.argv) >= 4 and len(sys.argv) <= 6)
+assert(len(sys.argv) >= 3 and len(sys.argv) <= 4)
 
-if len(sys.argv) == 4:
-    _, docType, measure, minNumCitationsString = sys.argv
-    minAgeString = "0"
-    minBase = None
-elif len(sys.argv) == 5:
-    _, docType, measure, minNumCitationsString, minAgeString = sys.argv
-    minBase = None
+if len(sys.argv) == 3:
+    _, docType, measure = sys.argv
+    filtersString = ""
 else:
-    _, docType, measure, minNumCitationsString, minAgeString, minBaseString = sys.argv
-    minBase = int(minBaseString)
+    _, docType, measure, filtersString = sys.argv
 
-minNumCitations = int(minNumCitationsString)
-minAge = int(minAgeString)
+filters, filterId = filtersStringToFilters(filtersString)
 
-cr = ConfigReader("config.ini", docType, measure, minNumCitations, minAge, minBase)
+config = ConfigReader("config.ini", docType, measure, filterId)
 
-X = readData(cr.featuresPath)
+X = readData(config.featuresPath)
 
-if minBase != None:
-    allInds = np.where(
-        (X[[cr.citationFeature]].values[:, 0] >= cr.minNumCitations) & (X[[cr.ageFeature]].values[:, 0] >= cr.minAge) & \
-        (X[[cr.baseFeature]].values[:, 0] >= cr.minBase)
-    )[0]
-else:
-    allInds = np.where(
-        (X[[cr.citationFeature]].values[:, 0] >= cr.minNumCitations) & (X[[cr.ageFeature]].values[:, 0] >= cr.minAge)
-    )[0]
+allowedIndsBoolArray = np.repeat(True, X.shape[0])
+for field, minMax in filters.iteritems():
+    allowedIndsBoolArray &= (X[[field]].values[:, 0] >= minMax[0]) & (X[[field]].values[:, 0] <= minMax[1])
+
+allInds = np.where(allowedIndsBoolArray)[0]
 sampleSize = len(allInds)
 testSize = min(int(.2 * sampleSize), 10000)
 validSize = min(int(.1 * sampleSize), 10000)
@@ -43,6 +34,6 @@ trainInds = sorted(allInds[0:trainSize])
 validInds = sorted(allInds[trainSize:(trainSize + validSize)])
 testInds = sorted(allInds[(trainSize + validSize):len(allInds)])
 
-np.array(trainInds).tofile(cr.trainIndsPath, sep = "\t", format = '%d')
-np.array(validInds).tofile(cr.validIndsPath, sep = "\t", format = '%d')
-np.array(testInds).tofile(cr.testIndsPath, sep = "\t", format = '%d')
+np.array(trainInds).tofile(config.trainIndsPath, sep ="\t", format ='%d')
+np.array(validInds).tofile(config.validIndsPath, sep ="\t", format ='%d')
+np.array(testInds).tofile(config.testIndsPath, sep ="\t", format ='%d')

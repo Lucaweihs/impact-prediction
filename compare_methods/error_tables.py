@@ -57,7 +57,8 @@ def rsquared_tables(models, X, Y, baseFeature, startingYear = 1, name = None, re
     r2InflatedDf = pd.DataFrame(data=r2InflatedTable, index=modelNames, columns=predYears)
     r2FlawedDf = pd.DataFrame(data=r2FlawedTable, index=modelNames, columns=predYears)
 
-    r2Df.to_csv("tables/" + removeString + name + ".tsv", sep="\t")
-    r2InflatedDf.to_csv("tables/" + "inflated-" + removeString + name + ".tsv", sep="\t")
-    r2FlawedDf.to_csv("tables/" + "flawed-" + removeString + name + ".tsv", sep="\t")
+    if name is not None:
+        r2Df.to_csv("tables/" + removeString + name + ".tsv", sep="\t")
+        r2InflatedDf.to_csv("tables/" + "inflated-" + removeString + name + ".tsv", sep="\t")
+        r2FlawedDf.to_csv("tables/" + "flawed-" + removeString + name + ".tsv", sep="\t")
     return {"rsquare" : r2Df, "rsquare-inflated" : r2InflatedDf, "rsquare-flawed" : r2FlawedDf}

@@ -46,7 +46,7 @@ class CitationModel:
 
 class ConstantModel(CitationModel):
     def __init__(self, X, Y, baseFeature):
-        self.name = "Constant"
+        self.name = "F"
         self.baseFeature = baseFeature
         self.numYears = Y.shape[1]
 
@@ -104,7 +104,7 @@ class PlusFixedKBaselineModel(CitationModel):
         
 class SimpleLinearModel(CitationModel):
     def __init__(self, X, Y, baseFeature, deltaFeature):
-        self.name = "Simple Linear"
+        self.name = "SM"
         self.baseFeature = baseFeature
         self.deltaFeature = deltaFeature
         self.numYears = Y.shape[1]
@@ -120,7 +120,7 @@ class SimpleLinearModel(CitationModel):
         
 class LassoModel(CitationModel):
     def __init__(self, X, Y, baseFeature):
-        self.name = "Lasso"
+        self.name = "LAS"
         self.baseFeature = baseFeature
         self.numYears = Y.shape[1]
         self.lassoModels = []
@@ -137,8 +137,8 @@ class LassoModel(CitationModel):
 class RandomForestModel(CitationModel):
     def __init__(self, X, Y, baseFeature,
                  rfParams = {"n_estimators": 1500, "max_features": .3333,
-                 "min_samples_leaf": 25, "n_jobs": multiprocessing.cpu_count() - 1}):
-        self.name = "Random Forest"
+                 "min_samples_leaf": 25, "n_jobs": multiprocessing.cpu_count() - 1, "verbose" : 1}):
+        self.name = "RF"
         self.baseFeature = baseFeature
         self.numYears = Y.shape[1]
         self.rfModels = []
@@ -154,7 +154,7 @@ class GradientBoostModel(CitationModel):
     def __init__(self, X, Y, baseFeature,
                  params = {"loss": "lad", "n_estimators": 500, "verbose" : 1},
                  tuneWithCV = False):
-        self.name = "Gradient Boost"
+        self.name = "GBRT"
         self.baseFeature = baseFeature
         self.numYears = Y.shape[1]
         self.gbModels = []
@@ -258,25 +258,28 @@ class XGBoostModel(CitationModel):
         return np.maximum(self.xgModels[year - 1].predict(X), X[[self.baseFeature]].values[:, 0])
 
 class RPPStub(CitationModel):
-    def __init__(self, config, trainX, validX, withFeatures = True, customSuffix = None):
+    def __init__(self, config, trainX, validX, testX, withFeatures = True, customSuffix = None):
         if withFeatures:
             self.name = "RPPNet"
             toAppend = "-all"
         else:
-            self.name = "RPPNet Intercept"
+            self.name = "RPP"
             toAppend = "-none"
 
         if customSuffix != None:
             suffix = toAppend + customSuffix
         else:
-            suffix = toAppend + config.fullSuffix + ".tsv"
+            suffix = toAppend + "-" + config.fullSuffix + ".tsv"
 
         validPredsFilePath = config.relPath + "rppPredictions-valid" + suffix
         trainPredsFilePath = config.relPath + "rppPredictions-train" + suffix
+        testPredsFilePath = config.relPath + "rppPredictions-test" + suffix
         self.trainX = trainX
         self.validX = validX
-        self.validPreds = dm.readData(validPredsFilePath, header = None)
+        self.testX = testX
         self.trainPreds = dm.readData(trainPredsFilePath, header = None)
+        self.validPreds = dm.readData(validPredsFilePath, header=None)
+        self.testPreds = dm.readData(testPredsFilePath, header=None)
         self.numYears = self.validPreds.shape[1]
         self.baseFeature = config.baseFeature
 
@@ -285,5 +288,7 @@ class RPPStub(CitationModel):
             return self.trainPreds[[year - 1]].values[:,0]
         elif self.validX.shape == X.shape and np.all(self.validX.values == X.values):
             return self.validPreds[[year - 1]].values[:,0]
+        elif self.testX.shape == X.shape and np.all(self.testX.values == X.values):
+            return self.testPreds[[year - 1]].values[:, 0]
         else:
             raise Exception("Unimplemented error.")
