@@ -16,7 +16,8 @@ def plotMAPE(mapesDf, errorsDf, name = None, colors = None, markers = None):
         markers = np.repeat("o", mapesDf.shape[0])
 
     order = np.argsort(mapesDf.values[:,-1])
-    offsets = np.linspace(-.18, .18, len(modelNames))
+    #offsets = np.linspace(-.18, .18, len(modelNames))
+    offsets = np.zeros(len(modelNames))
     for i in range(len(modelNames)):
         darkColor = np.copy(colors[i])
         darkColor[0:3] = darkColor[0:3] / 2.0
@@ -33,7 +34,9 @@ def plotMAPE(mapesDf, errorsDf, name = None, colors = None, markers = None):
                     marker=markers[i], s=s, zorder=2, edgecolor=darkColor)
 
     plt.margins(x = 0.05)
-    plt.legend(loc=0, prop={'size': 20}, fancybox=True, framealpha=1.0)
+
+    handles, labels = plt.gca().get_legend_handles_labels()
+    plt.legend(handles, labels, loc=0, prop={'size': 20}, fancybox=True, framealpha=1.0)
     plt.xlabel("Year", fontsize=20)
     plt.ylabel("Mean % Error", fontsize=20)
     #ymin, ymax = plt.gca().get_ylim()
@@ -66,7 +69,7 @@ def plotMAPEPerCount(model, X, y, year, baseFeature, name = None):
     if "citation" in baseFeature.lower():
         xlab = "# Citations in 2005"
         xscale = "log"
-    elif "hind" in baseFeature.lower():
+    elif "hindex" in baseFeature.lower():
         xlab = "H-Index in 2005"
         xscale = "linear"
         plt.xlim(left = 0)
@@ -97,14 +100,14 @@ def plotAPEScatter(model, X, y, year, baseFeature, name=None, heatMap=False):
     if "citation" in baseFeature.lower():
         xlab = "Citations in 2005"
         xscale = "log"
-    elif "hind" in baseFeature.lower():
+    elif "hindex" in baseFeature.lower():
         xlab = "H-Index in 2005"
         xscale = "linear"
-    elif "authorage" in baseFeature.lower():
-        xlab = "Length of Career in 2005"
+    elif "author_age" in baseFeature.lower():
+        xlab = "Length of Author Career in 2005"
         xscale = "linear"
-    elif "paperage" in baseFeature.lower():
-        xlab = "Age in 2005"
+    elif "paper_age" in baseFeature.lower():
+        xlab = "Paper Age in 2005"
         xscale = "linear"
     else:
         raise Exception("Invalid base feature.")
@@ -122,11 +125,16 @@ def plotAPEScatter(model, X, y, year, baseFeature, name=None, heatMap=False):
     else:
         plt.scatter(baseValues, allApes, s=20, edgecolor='')
     plt.xlabel(xlab, fontsize=20)
-    plt.ylabel("% Error", fontsize=20)
+    plt.ylabel("% Error after 10 Years", fontsize=20)
     plt.xscale(xscale)
+    plt.xlim(left=0)
+    plt.ylim(bottom=-1.5)
     reformatAxes()
     if name != None:
         if heatMap:
+            fig = plt.gcf()
+            fig.set_size_inches(12, 4)
+            reformatAxes()
             plt.savefig("plots/heat-" + name + ".pdf")
         else:
             plt.savefig("plots/" + name + ".pdf")
@@ -135,7 +143,8 @@ def plotAPEScatter(model, X, y, year, baseFeature, name=None, heatMap=False):
         plt.show()
         plt.close()
 
-def plotRSquared(rsqDf, name = None, colors = None, markers = None):
+def plotRSquared(rsqDf, name = None, colors = None, markers = None,
+                 xlabel="Past Adjusted $R^2$"):
     predYears = rsqDf.columns.values
     if colors is None:
         colors = cm.rainbow(np.linspace(0, 1, rsqDf.shape[0]))
@@ -143,7 +152,8 @@ def plotRSquared(rsqDf, name = None, colors = None, markers = None):
         markers = np.repeat("o", rsqDf.shape[0])
     modelNames = rsqDf.index
 
-    offsets = np.linspace(-.18, .18, len(modelNames))
+    #offsets = np.linspace(-.18, .18, len(modelNames))
+    offsets = np.zeros(len(modelNames))
     order = np.argsort(rsqDf.values[:, -1])
     for i in range(rsqDf.shape[0]):
         darkColor = np.copy(colors[i])
@@ -161,11 +171,12 @@ def plotRSquared(rsqDf, name = None, colors = None, markers = None):
                     s=s, zorder=2, lw=0.5, edgecolor=darkColor)
 
     plt.margins(x=0.05)
-    plt.legend(loc=0, prop={'size':20}, fancybox=True, framealpha=1.0)
-    ymin, _ = plt.gca().get_ylim()
-    plt.ylim(bottom=min(ymin, 0.0))
+    handles, labels = plt.gca().get_legend_handles_labels()
+    plt.legend(handles, labels, loc=0, prop={'size':20}, fancybox=True, framealpha=1.0)
+    ymin, ymax = plt.gca().get_ylim()
+    plt.ylim(top=min(1.0, ymax))
     plt.xlabel("Year", fontsize=20)
-    plt.ylabel("Past Adjusted $R^2$", fontsize=20)
+    plt.ylabel(xlabel, fontsize=20)
     reformatAxes()
     if name != None:
         plt.savefig("plots/" + name + ".pdf")

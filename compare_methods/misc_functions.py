@@ -1,3 +1,12 @@
+def nArgMax(l, n):
+  return [v[1] for v in sorted(zip(l, range(len(l))), key=lambda x: -x[0])[:n]]
+
+def nArgMin(l, n):
+  return [v[1] for v in sorted(zip(l, range(len(l))), key=lambda x: x[0])[:n]]
+
+def listInds(l, inds):
+    return [l[i] for i in inds]
+
 def filtersStringToFilters(filtersString):
     if filtersString == "":
         return ({}, "")
@@ -91,3 +100,14 @@ def anyOpen(filename, mode='r', buff=1024*1024, external=PARALLEL):
     else:
         return open(filename, mode, buff)
     return None
+
+def dumpPickleWithZip(obj, filePath):
+    import cPickle as pickle
+    with anyOpen(filePath, 'w') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
+def readPickleWithZip(filePath):
+    import cPickle as pickle
+    with anyOpen(filePath, 'r') as f:
+        obj = pickle.load(f)
+    return obj

@@ -22,7 +22,11 @@ class ConfigReader:
         self.docType = docType
         self.featuresPath = self.relPath + self.docType + "Features-" + yearPartOfSuffix + ".tsv"
         self.responsesPath = self.relPath + self.docType + "Responses-" + yearPartOfSuffix + ".tsv"
-        self.historyPath = self.relPath + self.docType + "Histories-" + yearPartOfSuffix + ".tsv"
+        if self.docType == "author":
+            self.historyPath = self.relPath + self.docType + "Histories-" + measure + \
+                               "-" + yearPartOfSuffix + ".tsv"
+        else:
+            self.historyPath = self.relPath + self.docType + "Histories-" + yearPartOfSuffix + ".tsv"
 
         self.measure = measure
 

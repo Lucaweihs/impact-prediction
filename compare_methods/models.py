@@ -7,6 +7,7 @@ import xgboost as xgb
 import multiprocessing as mp
 import os
 import cPickle as pickle
+import rpp
 
 class CitationModel:
     def predict(self, X, year):
@@ -19,30 +20,29 @@ class CitationModel:
         return preds
         
     def mape(self, X, y, year):
-        inds = (y != 0)
-        return np.mean(np.abs(y - self.predict(X, year))[inds] / (1.0 * y[inds]))
+        return self._mape_with_error(self.predict(X, year), y)
+
+    def _mape_with_error(self, preds, truth):
+        assert(not np.any(truth == 0))
+        abs_diffs = np.abs((preds - truth) / (1.0 * truth))
+        mape = np.mean(abs_diffs, axis=0)
+        sd = np.sqrt(np.var(abs_diffs, axis=0) / abs_diffs.shape[0])
+        return (mape, sd)
+
+    def _mape(self, preds, truth):
+        assert (not np.any(truth == 0))
+        abs_diffs = np.abs((preds - truth) / (1.0 * truth))
+        mape = np.mean(abs_diffs, axis=0)
+        return mape
 
     def mapeWithError(self, X, y, year):
-        inds = (y != 0)
-        absDiffs = np.abs(y - self.predict(X, year))[inds] / (1.0 * y[inds])
-        mape = np.mean(absDiffs)
-        sd = np.sqrt(np.var(absDiffs) / len(absDiffs))
-        return (mape, sd)
+        return self._mape_with_error(self.predict(X, year), y)
         
     def mapeAll(self, X, Y):
-        mapes = np.zeros(self.numYears)
-        for i in range(self.numYears):
-            mapes[i] = self.mape(X, Y.values[:, i], i + 1)
-        return mapes
+        return self._mape(self.predictAll(X), Y.values)
 
     def mapeAllWithErrors(self, X, Y):
-        mapes = []
-        errors = []
-        for i in range(self.numYears):
-            mape, error = self.mapeWithError(X, Y.values[:, i], i + 1)
-            mapes.append(mape)
-            errors.append(error)
-        return (mapes, np.array(errors))
+        return self._mape_with_error(self.predictAll(X), Y.values)
 
 class ConstantModel(CitationModel):
     def __init__(self, X, Y, baseFeature):
@@ -79,28 +79,31 @@ class PlusVariableKBaselineModel(CitationModel):
         newX[:,1] = newX[:,1] * year
         return np.maximum(self.linModel.predict(newX)[:,0], X[[self.baseFeature]].values[:,0])
 
-class PlusFixedKBaselineModel(CitationModel):
-    def __init__(self, X, Y, baseFeature):
-        self.name = "Fixed k"
+class PlusKBaselineModel(CitationModel):
+    def __init__(self, X, Y, baseFeature, k = None):
+        self.name = "PK"
         self.baseFeature = baseFeature
         self.numYears = Y.shape[1]
-        
-        newXs = []
-        newYs = []
-        for i in range(Y.shape[1]):
-            newX = np.column_stack((X[[baseFeature]].values, np.repeat(i + 1, X.shape[0])))
-            newXs.append(newX)
-            newYs.append(Y[[i]].values)
-        
-        newX = np.concatenate(tuple(newXs))
-        newY = np.concatenate(tuple(newYs))
-        
-        self.linModel = linear_model.LinearRegression(copy_X = False)
-        self.linModel.fit(newX, newY)
+
+        if k is None:
+            newXs = []
+            newYs = []
+            for i in range(Y.shape[1]):
+                newXs.append(np.repeat(i + 1, X.shape[0]))
+                newYs.append(Y.values[:,i] - X[[baseFeature]].values[:,0])
+
+            newX = np.concatenate(tuple(newXs))
+            newY = np.concatenate(tuple(newYs))
+
+            linModel = linear_model.SGDRegressor(loss="huber", epsilon = 1, penalty="none",
+                                                fit_intercept=False)
+            self.k = linModel.fit(newX.reshape((len(newX), 1)), newY).coef_[0]
+        else:
+            self.k = k
+        print "Plus-k model has constant k = " + str(self.k)
         
     def predict(self, X, year):
-        newX = np.column_stack((X[[self.baseFeature]].values, np.repeat(year, X.shape[0])))
-        return np.maximum(self.linModel.predict(newX)[:,0], X[[self.baseFeature]].values[:,0])
+        return X[[self.baseFeature]].values[:,0] + year * self.k
         
 class SimpleLinearModel(CitationModel):
     def __init__(self, X, Y, baseFeature, deltaFeature):
@@ -152,7 +155,8 @@ class RandomForestModel(CitationModel):
 
 class GradientBoostModel(CitationModel):
     def __init__(self, X, Y, baseFeature,
-                 params = {"loss": "lad", "n_estimators": 500, "verbose" : 1},
+                 params = { "loss": "lad", "n_estimators": 500, "verbose" : 1,
+                            "min_samples_leaf" : 2, },
                  tuneWithCV = False):
         self.name = "GBRT"
         self.baseFeature = baseFeature
@@ -256,6 +260,24 @@ class XGBoostModel(CitationModel):
 
     def predict(self, X, year):
         return np.maximum(self.xgModels[year - 1].predict(X), X[[self.baseFeature]].values[:, 0])
+
+class RPPNetWrapper(CitationModel):
+    def __init__(self, X, histories, Y, model_save_path = None):
+        self.name = "RPPNet-tf"
+        self.num_years = Y.shape[1]
+        self.numYears = Y.shape[1]
+        self.rpp_net = rpp.RPPNet(0.1, model_save_path, maxiter=1)
+        if not self.rpp_net.is_fit():
+            self.rpp_net.fit(X, histories)
+
+    def set_prediction_histories(self, histories):
+        self._pred_histories = histories
+
+    def predict(self, X, year):
+        return self.rpp_net.predict(X, self._pred_histories, year)[:,-1]
+
+    def predictAll(self, X):
+        return self.rpp_net.predict(X, self._pred_histories, self.num_years)
 
 class RPPStub(CitationModel):
     def __init__(self, config, trainX, validX, testX, withFeatures = True, customSuffix = None):
