@@ -12,13 +12,13 @@ import rpp
 class CitationModel:
     def predict(self, X, year):
         raise Exception("Unimplemented error.")
-    
-    def predictAll(self, X):
+
+    def predict_all(self, X):
         preds = []
-        for i in range(self.numYears):
+        for i in range(self.num_years):
             preds.append(self.predict(X, i + 1))
-        return preds
-        
+        return np.array(preds).T
+
     def mape(self, X, y, year):
         return self._mape_with_error(self.predict(X, year), y)
 
@@ -35,238 +35,238 @@ class CitationModel:
         mape = np.mean(abs_diffs, axis=0)
         return mape
 
-    def mapeWithError(self, X, y, year):
+    def mape_with_error(self, X, y, year):
         return self._mape_with_error(self.predict(X, year), y)
-        
-    def mapeAll(self, X, Y):
-        return self._mape(self.predictAll(X), Y.values)
 
-    def mapeAllWithErrors(self, X, Y):
-        return self._mape_with_error(self.predictAll(X), Y.values)
+    def mape_all(self, X, Y):
+        return self._mape(self.predict_all(X), Y.values)
+
+    def mape_all_with_errors(self, X, Y):
+        return self._mape_with_error(self.predict_all(X), Y.values)
 
 class ConstantModel(CitationModel):
-    def __init__(self, X, Y, baseFeature):
+    def __init__(self, X, Y, base_feature):
         self.name = "F"
-        self.baseFeature = baseFeature
-        self.numYears = Y.shape[1]
+        self.base_feature = base_feature
+        self.num_years = Y.shape[1]
 
     def predict(self, X, year):
-        return X[[self.baseFeature]].values[:,0]
+        return X[[self.base_feature]].values[:,0]
 
 class PlusVariableKBaselineModel(CitationModel):
-    def __init__(self, X, Y, baseFeature, averageFeature):
+    def __init__(self, X, Y, base_feature, average_feature):
         self.name = "Variable k"
-        self.baseFeature = baseFeature
-        self.averageFeature = averageFeature
-        self.numYears = Y.shape[1]
-        
-        newXs = []
-        newYs = []
+        self.base_feature = base_feature
+        self.average_feature = average_feature
+        self.num_years = Y.shape[1]
+
+        new_xs = []
+        new_ys = []
         for i in range(Y.shape[1]):
-            newX = X[[baseFeature, averageFeature]].values
-            newX[:,1] = newX[:,1] * (i + 1)
-            newXs.append(newX)
-            newYs.append(Y[[i]].values)
-        
-        newX = np.concatenate(tuple(newXs))
-        newY = np.concatenate(tuple(newYs))
-        
-        self.linModel = linear_model.LinearRegression(copy_X = False)
-        self.linModel.fit(newX, newY)
-        
+            new_x = X[[base_feature, average_feature]].values
+            new_x[:,1] = new_x[:,1] * (i + 1)
+            new_xs.append(new_x)
+            new_ys.append(Y[[i]].values)
+
+        new_x = np.concatenate(tuple(new_xs))
+        new_y = np.concatenate(tuple(new_ys))
+
+        self.lin_model = linear_model.LinearRegression(copy_X = False)
+        self.lin_model.fit(new_x, new_y)
+
     def predict(self, X, year):
-        newX = X[[self.baseFeature, self.averageFeature]].values
-        newX[:,1] = newX[:,1] * year
-        return np.maximum(self.linModel.predict(newX)[:,0], X[[self.baseFeature]].values[:,0])
+        new_x = X[[self.base_feature, self.average_feature]].values
+        new_x[:,1] = new_x[:,1] * year
+        return np.maximum(self.lin_model.predict(new_x)[:,0], X[[self.base_feature]].values[:,0])
 
 class PlusKBaselineModel(CitationModel):
-    def __init__(self, X, Y, baseFeature, k = None):
+    def __init__(self, X, Y, base_feature, k = None):
         self.name = "PK"
-        self.baseFeature = baseFeature
-        self.numYears = Y.shape[1]
+        self.base_feature = base_feature
+        self.num_years = Y.shape[1]
 
         if k is None:
-            newXs = []
-            newYs = []
+            new_xs = []
+            new_ys = []
             for i in range(Y.shape[1]):
-                newXs.append(np.repeat(i + 1, X.shape[0]))
-                newYs.append(Y.values[:,i] - X[[baseFeature]].values[:,0])
+                new_xs.append(np.repeat(i + 1, X.shape[0]))
+                new_ys.append(Y.values[:,i] - X[[base_feature]].values[:,0])
 
-            newX = np.concatenate(tuple(newXs))
-            newY = np.concatenate(tuple(newYs))
+            new_x = np.concatenate(tuple(new_xs))
+            new_y = np.concatenate(tuple(new_ys))
 
-            linModel = linear_model.SGDRegressor(loss="huber", epsilon = 1, penalty="none",
+            lin_model = linear_model.SGDRegressor(loss="huber", epsilon = 1, penalty="none",
                                                 fit_intercept=False)
-            self.k = linModel.fit(newX.reshape((len(newX), 1)), newY).coef_[0]
+            self.k = lin_model.fit(new_x.reshape((len(new_x), 1)), new_y).coef_[0]
         else:
             self.k = k
         print "Plus-k model has constant k = " + str(self.k)
-        
+
     def predict(self, X, year):
-        return X[[self.baseFeature]].values[:,0] + year * self.k
-        
+        return X[[self.base_feature]].values[:,0] + year * self.k
+
 class SimpleLinearModel(CitationModel):
-    def __init__(self, X, Y, baseFeature, deltaFeature):
+    def __init__(self, X, Y, base_feature, delta_feature):
         self.name = "SM"
-        self.baseFeature = baseFeature
-        self.deltaFeature = deltaFeature
-        self.numYears = Y.shape[1]
-        self.linModels = []
+        self.base_feature = base_feature
+        self.delta_feature = delta_feature
+        self.num_years = Y.shape[1]
+        self.lin_models = []
         for i in range(Y.shape[1]):
             model = linear_model.LinearRegression()
-            model.fit(X[[baseFeature, deltaFeature]].values, Y.values[:,i])
-            self.linModels.append(model)
-            
+            model.fit(X[[base_feature, delta_feature]].values, Y.values[:,i])
+            self.lin_models.append(model)
+
     def predict(self, X, year):
-        return np.maximum(self.linModels[year - 1].predict(X[[self.baseFeature, self.deltaFeature]]),
-                          X[[self.baseFeature]].values[:,0])
-        
+        return np.maximum(self.lin_models[year - 1].predict(X[[self.base_feature, self.delta_feature]]),
+                          X[[self.base_feature]].values[:,0])
+
 class LassoModel(CitationModel):
-    def __init__(self, X, Y, baseFeature):
+    def __init__(self, X, Y, base_feature):
         self.name = "LAS"
-        self.baseFeature = baseFeature
-        self.numYears = Y.shape[1]
-        self.lassoModels = []
+        self.base_feature = base_feature
+        self.num_years = Y.shape[1]
+        self.lasso_models = []
         for i in range(Y.shape[1]):
             rescaler = preprocessing.StandardScaler()
-            model = linear_model.LassoCV(cv = 10)
+            model = linear_model.LassoCV(cv=10)
             pipe = pipeline.Pipeline([('rescale', rescaler), ('model', model)])
             pipe.fit(X.values, Y.values[:,i])
-            self.lassoModels.append(pipe)
-            
+            self.lasso_models.append(pipe)
+
     def predict(self, X, year):
-        return np.maximum(self.lassoModels[year - 1].predict(X), X[[self.baseFeature]].values[:,0])
-            
+        return np.maximum(self.lasso_models[year - 1].predict(X), X[[self.base_feature]].values[:,0])
+
 class RandomForestModel(CitationModel):
-    def __init__(self, X, Y, baseFeature,
-                 rfParams = {"n_estimators": 1500, "max_features": .3333,
+    def __init__(self, X, Y, base_feature,
+                 rf_params = {"n_estimators": 1500, "max_features": .3333,
                  "min_samples_leaf": 25, "n_jobs": multiprocessing.cpu_count() - 1, "verbose" : 1}):
         self.name = "RF"
-        self.baseFeature = baseFeature
-        self.numYears = Y.shape[1]
-        self.rfModels = []
+        self.base_feature = base_feature
+        self.num_years = Y.shape[1]
+        self.rf_models = []
         for i in range(Y.shape[1]):
-            rfModel = ensemble.RandomForestRegressor(**rfParams)
-            rfModel.fit(X.values, Y.values[:,i])
-            self.rfModels.append(rfModel)
-    
+            rf_model = ensemble.RandomForestRegressor(**rf_params)
+            rf_model.fit(X.values, Y.values[:,i])
+            self.rf_models.append(rf_model)
+
     def predict(self, X, year):
-        return np.maximum(self.rfModels[year - 1].predict(X), X[[self.baseFeature]].values[:,0])
+        return np.maximum(self.rf_models[year - 1].predict(X), X[[self.base_feature]].values[:,0])
 
 class GradientBoostModel(CitationModel):
-    def __init__(self, X, Y, baseFeature,
+    def __init__(self, X, Y, base_feature,
                  params = { "loss": "lad", "n_estimators": 500, "verbose" : 1,
                             "min_samples_leaf" : 2, },
-                 tuneWithCV = False):
+                 tune_with_cv = False):
         self.name = "GBRT"
-        self.baseFeature = baseFeature
-        self.numYears = Y.shape[1]
-        self.gbModels = []
-        if tuneWithCV:
-            gbModel = ensemble.GradientBoostingRegressor(**params)
-            print("Tuning max depth\n")
-            searchWithParameters(gbModel, {"max_depth": [2, 3, 4, 5, 6]}, X.values, Y.values[:, self.numYears - 1])
-            print("Tuning min samples\n")
-            searchWithParameters(gbModel, {"min_samples_split": [2, 3, 4],
-                                           "min_samples_leaf": [1, 2]}, X.values, Y.values[:, self.numYears - 1])
-            print("Tuning subsample percent\n")
-            searchWithParameters(gbModel, {"subsample": [.6, .7, .8, .9, 1.0]}, X.values, Y.values[:, self.numYears - 1])
-            params = gbModel.get_params()
+        self.base_feature = base_feature
+        self.num_years = Y.shape[1]
+        self.gb_models = []
+        if tune_with_cv:
+            gb_model = ensemble.GradientBoostingRegressor(**params)
+            print("Tuning max depth")
+            search_with_parameters(gb_model, {"max_depth": [2, 3, 4, 5, 6]}, X.values, Y.values[:, self.num_years - 1])
+            print("Tuning min samples")
+            search_with_parameters(gb_model, {"min_samples_split": [2, 3, 4],
+                                           "min_samples_leaf": [1, 2]}, X.values, Y.values[:, self.num_years - 1])
+            print("Tuning subsample percent")
+            search_with_parameters(gb_model, {"subsample": [.6, .7, .8, .9, 1.0]}, X.values, Y.values[:, self.num_years - 1])
+            params = gb_model.get_params()
         for i in range(Y.shape[1]):
-            gbModel = ensemble.GradientBoostingRegressor(**params)
-            gbModel.fit(X.values, Y.values[:,i])
-            self.gbModels.append(gbModel)
+            gb_model = ensemble.GradientBoostingRegressor(**params)
+            gb_model.fit(X.values, Y.values[:,i])
+            self.gb_models.append(gb_model)
 
     def predict(self, X, year):
-        return np.maximum(self.gbModels[year - 1].predict(X),
-                          X[[self.baseFeature]].values[:,0])
+        return np.maximum(self.gb_models[year - 1].predict(X),
+                          X[[self.base_feature]].values[:,0])
 
 
-def mapeError(preds, trueDMatrix):
-    return 'mape', np.mean(np.abs(preds - trueDMatrix.get_label()) / (1.0 * trueDMatrix.get_label()))
+def mape_error(preds, true_d_matrix):
+    return 'mape', np.mean(np.abs(preds - true_d_matrix.get_label()) / (1.0 * true_d_matrix.get_label()))
 
 
-def setNEstimatorsByCV(model, X, y, cv_folds=5, early_stopping_rounds=50):
+def set_n_estimators_by_cv(model, X, y, cv_folds=5, early_stopping_rounds=50):
     model.set_params(n_estimators=1000, nthread=mp.cpu_count())
-    xgTrain = xgb.DMatrix(X, label=y)
+    xg_train = xgb.DMatrix(X, label=y)
     params = model.get_params()
-    cvResult = xgb.cv(params, xgTrain, num_boost_round=params['n_estimators'],
-                      nfold=cv_folds, feval=mapeError,
+    cv_result = xgb.cv(params, xg_train, num_boost_round=params['n_estimators'],
+                      nfold=cv_folds, feval=mape_error,
                       early_stopping_rounds=early_stopping_rounds, verbose_eval=True)
-    model.set_params(n_estimators=cvResult.shape[0])
+    model.set_params(n_estimators=cv_result.shape[0])
 
 
-def mapeScorer(estimator, X, y):
+def mape_scorer(estimator, X, y):
     preds = estimator.predict(X)
     return float(-np.mean(np.abs(preds - y) / (1.0 * y)))
 
 
-def searchWithParameters(model, paramsToSearch, X, y):
-    gsearch = GridSearchCV(estimator=model, param_grid=paramsToSearch,
-                           scoring=mapeScorer, n_jobs=mp.cpu_count(),
+def search_with_parameters(model, params_to_search, X, y):
+    gsearch = GridSearchCV(estimator=model, param_grid=params_to_search,
+                           scoring=mape_scorer, n_jobs=mp.cpu_count(),
                            iid=False, cv=5, verbose=0)
     gsearch.fit(X, y)
     print(gsearch.grid_scores_)
     model.set_params(**gsearch.best_params_)
 
 class XGBoostModel(CitationModel):
-    def __init__(self, X, Y, baseFeature,
+    def __init__(self, X, Y, base_feature,
                  params = {"learning_rate" : 0.01, "objective" : "reg:linear",
                            "max_depth" : 6, "min_child_weight" : 1,
                            "gamma" : 1.0, "subsample" : 0.8,
                            "colsample_bytree" : 0.8},
-                 tuneWithCV = True):
+                 tune_with_cv = True):
         params['nthread'] = 0
         self.name = "XGB"
-        self.baseFeature = baseFeature
-        self.numYears = Y.shape[1]
+        self.base_feature = base_feature
+        self.num_years = Y.shape[1]
         self.params = params
-        self.xgModels = []
+        self.xg_models = []
         for i in range(Y.shape[1]):
-            xgbModel = xgb.sklearn.XGBRegressor(**params)
-            if tuneWithCV:
-                self.__fitModelByCV(xgbModel, X, Y[[i]].values[:,0])
+            xgb_model = xgb.sklearn.XGBRegressor(**params)
+            if tune_with_cv:
+                self.__fit_model_by_cv(xgb_model, X, Y[[i]].values[:,0])
             elif os.path.exists("data/xgb-params.pickle"):
-                paramsList = pickle.load(open("data/xgb-params.pickle", "rb"))
-                xgbModel.set_params(**(paramsList[i]))
+                params_list = pickle.load(open("data/xgb-params.pickle", "rb"))
+                xgb_model.set_params(**(params_list[i]))
             else:
-                setNEstimatorsByCV(xgbModel, X, Y[[i]].values[:,0])
-            xgbModel.set_params(nthread = mp.cpu_count())
-            xgbModel.fit(X, Y[[i]].values[:,0])
-            self.xgModels.append(xgbModel)
+                set_n_estimators_by_cv(xgb_model, X, Y[[i]].values[:,0])
+            xgb_model.set_params(nthread = mp.cpu_count())
+            xgb_model.fit(X, Y[[i]].values[:,0])
+            self.xg_models.append(xgb_model)
 
-    def __fitModelByCV(self, xgbModel, X, y):
-        xgbModel.set_params(nthread=0)
-        setNEstimatorsByCV(xgbModel, X, y)
+    def __fit_model_by_cv(self, xgb_model, X, y):
+        xgb_model.set_params(nthread=0)
+        set_n_estimators_by_cv(xgb_model, X, y)
 
         params1 = {'max_depth': [3, 4, 5, 6, 7],
                    'min_child_weight': [1, 2, 4, 8]}
 
-        searchWithParameters(xgbModel, params1, X, y)
+        search_with_parameters(xgb_model, params1, X, y)
 
         params2 = {'gamma': [0] + (10 ** np.linspace(-3, 0, 9)).tolist()}
-        searchWithParameters(xgbModel, params2, X, y)
+        search_with_parameters(xgb_model, params2, X, y)
 
-        xgbModel.set_params(nthread=0)
-        setNEstimatorsByCV(xgbModel, X, y)
+        xgb_model.set_params(nthread=0)
+        set_n_estimators_by_cv(xgb_model, X, y)
 
         params3 = {'subsample': [i / 10.0 for i in range(6, 10)],
                    'colsample_bytree': [i / 10.0 for i in range(6, 10)]}
-        searchWithParameters(xgbModel, params3, X, y)
+        search_with_parameters(xgb_model, params3, X, y)
 
         params4 = {'reg_alpha': [0] + (10 ** np.linspace(-3, 2, 3)).tolist(),
                    'reg_lambda': [0] + (10 ** np.linspace(-3, 2, 3)).tolist()}
-        searchWithParameters(xgbModel, params4, X, y)
+        search_with_parameters(xgb_model, params4, X, y)
 
     def predict(self, X, year):
-        return np.maximum(self.xgModels[year - 1].predict(X), X[[self.baseFeature]].values[:, 0])
+        return np.maximum(self.xg_models[year - 1].predict(X), X[[self.base_feature]].values[:, 0])
 
 class RPPNetWrapper(CitationModel):
-    def __init__(self, X, histories, Y, model_save_path = None):
+    def __init__(self, X, histories, Y, model_save_path = None, maxiter=10):
         self.name = "RPPNet-tf"
         self.num_years = Y.shape[1]
-        self.numYears = Y.shape[1]
-        self.rpp_net = rpp.RPPNet(0.1, model_save_path, maxiter=1)
+        self.num_years = Y.shape[1]
+        self.rpp_net = rpp.RPPNet(0.1, model_save_path, maxiter=maxiter)
         if not self.rpp_net.is_fit():
             self.rpp_net.fit(X, histories)
 
@@ -276,41 +276,41 @@ class RPPNetWrapper(CitationModel):
     def predict(self, X, year):
         return self.rpp_net.predict(X, self._pred_histories, year)[:,-1]
 
-    def predictAll(self, X):
+    def predict_all(self, X):
         return self.rpp_net.predict(X, self._pred_histories, self.num_years)
 
 class RPPStub(CitationModel):
-    def __init__(self, config, trainX, validX, testX, withFeatures = True, customSuffix = None):
-        if withFeatures:
+    def __init__(self, config, train_x, valid_x, test_x, with_features = True, custom_suffix = None):
+        if with_features:
             self.name = "RPPNet"
-            toAppend = "-all"
+            to_append = "-all"
         else:
             self.name = "RPP"
-            toAppend = "-none"
+            to_append = "-none"
 
-        if customSuffix != None:
-            suffix = toAppend + customSuffix
+        if custom_suffix != None:
+            suffix = to_append + custom_suffix
         else:
-            suffix = toAppend + "-" + config.fullSuffix + ".tsv"
+            suffix = to_append + "-" + config.full_suffix + ".tsv"
 
-        validPredsFilePath = config.relPath + "rppPredictions-valid" + suffix
-        trainPredsFilePath = config.relPath + "rppPredictions-train" + suffix
-        testPredsFilePath = config.relPath + "rppPredictions-test" + suffix
-        self.trainX = trainX
-        self.validX = validX
-        self.testX = testX
-        self.trainPreds = dm.readData(trainPredsFilePath, header = None)
-        self.validPreds = dm.readData(validPredsFilePath, header=None)
-        self.testPreds = dm.readData(testPredsFilePath, header=None)
-        self.numYears = self.validPreds.shape[1]
-        self.baseFeature = config.baseFeature
+        valid_preds_file_path = config.rel_path + "rppPredictions-valid" + suffix
+        train_preds_file_path = config.rel_path + "rppPredictions-train" + suffix
+        test_preds_file_path = config.rel_path + "rppPredictions-test" + suffix
+        self.train_x = train_x
+        self.valid_x = valid_x
+        self.test_x = test_x
+        self.train_preds = dm.read_data(train_preds_file_path, header = None)
+        self.valid_preds = dm.read_data(valid_preds_file_path, header=None)
+        self.test_preds = dm.read_data(test_preds_file_path, header=None)
+        self.num_years = self.valid_preds.shape[1]
+        self.base_feature = config.base_feature
 
     def predict(self, X, year):
-        if self.trainX.shape == X.shape and np.all(self.trainX.values == X.values):
-            return self.trainPreds[[year - 1]].values[:,0]
-        elif self.validX.shape == X.shape and np.all(self.validX.values == X.values):
-            return self.validPreds[[year - 1]].values[:,0]
-        elif self.testX.shape == X.shape and np.all(self.testX.values == X.values):
-            return self.testPreds[[year - 1]].values[:, 0]
+        if self.train_x.shape == X.shape and np.all(self.train_x.values == X.values):
+            return self.train_preds[[year - 1]].values[:,0]
+        elif self.valid_x.shape == X.shape and np.all(self.valid_x.values == X.values):
+            return self.valid_preds[[year - 1]].values[:,0]
+        elif self.test_x.shape == X.shape and np.all(self.test_x.values == X.values):
+            return self.test_preds[[year - 1]].values[:, 0]
         else:
             raise Exception("Unimplemented error.")

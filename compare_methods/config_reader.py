@@ -1,45 +1,45 @@
 import configparser
 
 class ConfigReader:
-    def __init__(self, fileName, docType, measure, idString):
+    def __init__(self, file_name, doc_type, measure, id_string):
         cp = configparser.ConfigParser()
         cp._interpolation = configparser.ExtendedInterpolation()
-        cp.read(fileName)
+        cp.read(file_name)
 
         self.window = int(cp.get("General", "window"))
-        self.startYear = int(cp.get("General", "startYear"))
-        self.sourceYear = int(cp.get("General", "sourceYear"))
-        self.targetYear = int(cp.get("General", "targetYear"))
+        self.start_year = int(cp.get("General", "startYear"))
+        self.source_year = int(cp.get("General", "sourceYear"))
+        self.target_year = int(cp.get("General", "targetYear"))
 
-        self.relPath = str(cp.get("General", "path"))
+        self.rel_path = str(cp.get("General", "path"))
 
-        yearPartOfSuffix = "-".join(map(str, [self.startYear, self.sourceYear,
-                                                    self.targetYear, self.window]))
+        year_part_of_suffix = "-".join(map(str, [self.start_year, self.source_year,
+                                              self.target_year, self.window]))
 
-        self.fullSuffix = docType + "-" + measure + "-" + idString + "-" + yearPartOfSuffix
-        self.fullSuffixNoMeasure = docType + "-" + idString + "-" + yearPartOfSuffix
+        self.full_suffix = doc_type + "-" + measure + "-" + id_string + "-" + year_part_of_suffix
+        self.full_suffix_no_measure = doc_type + "-" + id_string + "-" + year_part_of_suffix
 
-        self.docType = docType
-        self.featuresPath = self.relPath + self.docType + "Features-" + yearPartOfSuffix + ".tsv"
-        self.responsesPath = self.relPath + self.docType + "Responses-" + yearPartOfSuffix + ".tsv"
-        if self.docType == "author":
-            self.historyPath = self.relPath + self.docType + "Histories-" + measure + \
-                               "-" + yearPartOfSuffix + ".tsv"
+        self.doc_type = doc_type
+        self.features_path = self.rel_path + self.doc_type + "Features-" + year_part_of_suffix + ".tsv"
+        self.responses_path = self.rel_path + self.doc_type + "Responses-" + year_part_of_suffix + ".tsv"
+        if self.doc_type == "author":
+            self.history_path = self.rel_path + self.doc_type + "Histories-" + measure + \
+                               "-" + year_part_of_suffix + ".tsv"
         else:
-            self.historyPath = self.relPath + self.docType + "Histories-" + yearPartOfSuffix + ".tsv"
+            self.history_path = self.rel_path + self.doc_type + "Histories-" + year_part_of_suffix + ".tsv"
 
         self.measure = measure
 
-        docTypeCap = self.docType.capitalize()
-        measureCap = self.measure.capitalize()
-        configSection = docTypeCap + measureCap
+        doc_type_cap = self.doc_type.capitalize()
+        measure_cap = self.measure.capitalize()
+        config_section = doc_type_cap + measure_cap
 
-        self.baseFeature = str(cp.get(configSection, "baseFeature"))
-        self.citationFeature = str(cp.get(configSection, "citationFeature"))
-        self.averageFeature = str(cp.get(configSection, "averageFeature"))
-        self.deltaFeature = str(cp.get(configSection, "deltaFeature"))
-        self.ageFeature = str(cp.get(configSection, "ageFeature"))
+        self.base_feature = str(cp.get(config_section, "baseFeature"))
+        self.citation_feature = str(cp.get(config_section, "citationFeature"))
+        self.average_feature = str(cp.get(config_section, "averageFeature"))
+        self.delta_feature = str(cp.get(config_section, "deltaFeature"))
+        self.age_feature = str(cp.get(config_section, "ageFeature"))
 
-        self.trainIndsPath = self.relPath + "trainInds-" + self.fullSuffixNoMeasure + ".tsv"
-        self.testIndsPath = self.relPath + "testInds-" + self.fullSuffixNoMeasure + ".tsv"
-        self.validIndsPath = self.relPath + "validInds-" + self.fullSuffixNoMeasure + ".tsv"
+        self.train_inds_path = self.rel_path + "trainInds-" + self.full_suffix_no_measure + ".tsv"
+        self.test_inds_path = self.rel_path + "testInds-" + self.full_suffix_no_measure + ".tsv"
+        self.valid_inds_path = self.rel_path + "validInds-" + self.full_suffix_no_measure + ".tsv"

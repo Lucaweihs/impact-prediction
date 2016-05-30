@@ -1,64 +1,64 @@
 import numpy as np
 import pandas as pd
 
-def mape_table(models, X, Y, startingYear = 1, name = None):
-    numYears = Y.shape[1]
-    predYears = range(startingYear, numYears + startingYear)
+def mape_table(models, X, Y, starting_year = 1, name = None):
+    num_years = Y.shape[1]
+    pred_years = range(starting_year, num_years + starting_year)
 
-    mapesTable = np.zeros((len(models), numYears))
-    errorsTable = np.zeros((len(models), numYears))
+    mapes_table = np.zeros((len(models), num_years))
+    errors_table = np.zeros((len(models), num_years))
     for i in range(len(models)):
-        mapesTable[i, :], errorsTable[i, :] = models[i].mapeAllWithErrors(X, Y)
-    mapesDf = pd.DataFrame(data=mapesTable, index=[m.name for m in models], columns=predYears)
-    errorsDf = pd.DataFrame(data=errorsTable, index=[m.name for m in models], columns=predYears)
+        mapes_table[i, :], errors_table[i, :] = models[i].mape_all_with_errors(X, Y)
+    mapes_df = pd.DataFrame(data=mapes_table, index=[m.name for m in models], columns=pred_years)
+    errors_df = pd.DataFrame(data=errors_table, index=[m.name for m in models], columns=pred_years)
     if name != None:
-        mapesDf.to_csv("tables/" + name + ".tsv", sep="\t")
-        errorsDf.to_csv("tables/" + "errors-" + name + ".tsv", sep="\t")
-    return (mapesDf, errorsDf)
+        mapes_df.to_csv("tables/" + name + ".tsv", sep="\t")
+        errors_df.to_csv("tables/" + "errors-" + name + ".tsv", sep="\t")
+    return (mapes_df, errors_df)
 
-def rsquared_tables(models, X, Y, baseFeature, startingYear = 1, name = None, removeOutliers = False):
-    baseValues = X[[baseFeature]].values[:, 0]
+def rsquared_tables(models, X, Y, base_feature, starting_year = 1, name = None, remove_outliers = False):
+    base_values = X[[base_feature]].values[:, 0]
 
-    numYears = Y.shape[1]
-    predYears = range(startingYear, numYears + startingYear)
-    errorsList = []
-    flawedErrorsList = []
-    indsToRemove = set()
+    num_years = Y.shape[1]
+    pred_years = range(starting_year, num_years + starting_year)
+    errors_list = []
+    flawed_errors_list = []
+    inds_to_remove = set()
     for i in range(len(models)):
-        preds = np.array(models[i].predictAll(X)).T
-        errorsPerYear = np.square(preds - Y.values)
-        indsToRemove |= set([np.argmax(errorsPerYear[:, i]) for i in range(numYears)])
-        errorsList.append(errorsPerYear)
-        flawedErrorsList.append(np.square(preds - np.mean(Y.values, axis=0)))
+        preds = models[i].predict_all(X)
+        errors_per_year = np.square(preds - Y.values)
+        inds_to_remove |= set([np.argmax(errors_per_year[:, i]) for i in range(num_years)])
+        errors_list.append(errors_per_year)
+        flawed_errors_list.append(np.square(preds - np.mean(Y.values, axis=0)))
 
-    if removeOutliers:
-        indsToRemove = list(indsToRemove)
-        removeString = "removed-"
-        print "Inds removed: " + str(indsToRemove)
+    if remove_outliers:
+        inds_to_remove = list(inds_to_remove)
+        remove_string = "removed-"
+        print "Inds removed: " + str(inds_to_remove)
     else:
-        indsToRemove = []
-        removeString = ""
+        inds_to_remove = []
+        remove_string = ""
 
-    baseErrors = np.var(np.delete((Y.values.T - baseValues).T, indsToRemove, axis=0), axis=0)
-    baseErrorsInflated = np.var(np.delete(Y.values, indsToRemove, axis=0), axis=0)
+    base_errors = np.var(np.delete((Y.values.T - base_values).T, inds_to_remove, axis=0), axis=0)
+    base_errors_inflated = np.var(np.delete(Y.values, inds_to_remove, axis=0), axis=0)
 
-    r2Table = np.zeros((len(models), numYears))
-    r2InflatedTable = np.zeros((len(models), numYears))
-    r2FlawedTable = np.zeros((len(models), numYears))
+    r2_table = np.zeros((len(models), num_years))
+    r2_inflated_table = np.zeros((len(models), num_years))
+    r2_flawed_table = np.zeros((len(models), num_years))
     for i in range(len(models)):
-        errorsPerYear = np.delete(errorsList[i], indsToRemove, axis=0)
-        errorMeans = np.mean(errorsPerYear, axis=0)
-        r2Table[i, :] = 1.0 - errorMeans / baseErrors
-        r2InflatedTable[i, :] = 1.0 - errorMeans / baseErrorsInflated
-        r2FlawedTable[i, :] = np.mean(flawedErrorsList[i], axis=0) / baseErrorsInflated
+        errors_per_year = np.delete(errors_list[i], inds_to_remove, axis=0)
+        error_means = np.mean(errors_per_year, axis=0)
+        r2_table[i, :] = 1.0 - error_means / base_errors
+        r2_inflated_table[i, :] = 1.0 - error_means / base_errors_inflated
+        r2_flawed_table[i, :] = np.mean(flawed_errors_list[i], axis=0) / base_errors_inflated
 
-    modelNames = [m.name for m in models]
-    r2Df = pd.DataFrame(data=r2Table, index=modelNames, columns=predYears)
-    r2InflatedDf = pd.DataFrame(data=r2InflatedTable, index=modelNames, columns=predYears)
-    r2FlawedDf = pd.DataFrame(data=r2FlawedTable, index=modelNames, columns=predYears)
+    model_names = [m.name for m in models]
+    r2_df = pd.DataFrame(data=r2_table, index=model_names, columns=pred_years)
+    r2_inflated_df = pd.DataFrame(data=r2_inflated_table, index=model_names, columns=pred_years)
+    r2_flawed_df = pd.DataFrame(data=r2_flawed_table, index=model_names, columns=pred_years)
 
     if name is not None:
-        r2Df.to_csv("tables/" + removeString + name + ".tsv", sep="\t")
-        r2InflatedDf.to_csv("tables/" + "inflated-" + removeString + name + ".tsv", sep="\t")
-        r2FlawedDf.to_csv("tables/" + "flawed-" + removeString + name + ".tsv", sep="\t")
-    return {"rsquare" : r2Df, "rsquare-inflated" : r2InflatedDf, "rsquare-flawed" : r2FlawedDf}
+        r2_df.to_csv("tables/" + remove_string + name + ".tsv", sep="\t")
+        r2_inflated_df.to_csv("tables/" + "inflated-" + remove_string + name + ".tsv", sep="\t")
+        r2_flawed_df.to_csv("tables/" + "flawed-" + remove_string + name + ".tsv", sep="\t")
+    return {"rsquare" : r2_df, "rsquare-inflated" : r2_inflated_df, "rsquare-flawed" : r2_flawed_df}

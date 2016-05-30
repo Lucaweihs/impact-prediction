@@ -7,31 +7,31 @@ import seaborn as sns
 sns.set_style("whitegrid", {'legend.frameon': True})
 from scipy.stats import gaussian_kde
 
-def plotMAPE(mapesDf, errorsDf, name = None, colors = None, markers = None):
-    predYears = mapesDf.columns.values
-    modelNames = list(mapesDf.index)
+def plot_mape(mapes_df, errors_df, name = None, colors = None, markers = None):
+    pred_years = mapes_df.columns.values
+    model_names = list(mapes_df.index)
     if colors is None:
-        colors = cm.rainbow(np.linspace(0, 1, len(modelNames)))
+        colors = cm.rainbow(np.linspace(0, 1, len(model_names)))
     if markers is None:
-        markers = np.repeat("o", mapesDf.shape[0])
+        markers = np.repeat("o", mapes_df.shape[0])
 
-    order = np.argsort(mapesDf.values[:,-1])
-    #offsets = np.linspace(-.18, .18, len(modelNames))
-    offsets = np.zeros(len(modelNames))
-    for i in range(len(modelNames)):
-        darkColor = np.copy(colors[i])
-        darkColor[0:3] = darkColor[0:3] / 2.0
+    order = np.argsort(mapes_df.values[:,-1])
+    #offsets = np.linspace(-.18, .18, len(model_names))
+    offsets = np.zeros(len(model_names))
+    for i in range(len(model_names)):
+        dark_color = np.copy(colors[i])
+        dark_color[0:3] = dark_color[0:3] / 2.0
         s = 80
         markersize = 10
         if markers[i] == "*":
             s = 150
             markersize = 13
-        plt.errorbar(predYears + offsets[np.where(order == i)], mapesDf.values[i,:], yerr = 2 * errorsDf.values[i,:],
-                     color = colors[i], label = modelNames[i], marker = markers[i],
-                     markerfacecolor=darkColor, markeredgecolor="black", markersize = markersize,
+        plt.errorbar(pred_years + offsets[np.where(order == i)], mapes_df.values[i,:], yerr = 2 * errors_df.values[i,:],
+                     color = colors[i], label = model_names[i], marker = markers[i],
+                     markerfacecolor=dark_color, markeredgecolor="black", markersize = markersize,
                      zorder=1, lw=3)
-        plt.scatter(predYears + offsets[np.where(order == i)], mapesDf.values[i, :], color=darkColor,
-                    marker=markers[i], s=s, zorder=2, edgecolor=darkColor)
+        plt.scatter(pred_years + offsets[np.where(order == i)], mapes_df.values[i, :], color=dark_color,
+                    marker=markers[i], s=s, zorder=2, edgecolor=dark_color)
 
     plt.margins(x = 0.05)
 
@@ -41,39 +41,39 @@ def plotMAPE(mapesDf, errorsDf, name = None, colors = None, markers = None):
     plt.ylabel("Mean % Error", fontsize=20)
     #ymin, ymax = plt.gca().get_ylim()
     #plt.ylim(0, max(ymax, 0.7))
-    reformatAxes()
+    reformat_axes()
     if name != None:
         plt.savefig("plots/" + name + ".pdf")
     else:
         plt.show()
     plt.close()
 
-def plotMAPEPerCount(model, X, y, year, baseFeature, name = None):
-    baseValues = X[[baseFeature]].values[:,0]
-    minBaseValue = max(int(np.min(baseValues)), 1)
-    maxBaseValue = int(np.max(baseValues))
-    mapeForValue = {}
-    numObsForValue = {}
-    baseRange = range(minBaseValue, maxBaseValue + 1)
+def plot_mape_per_count(model, X, y, year, base_feature, name = None):
+    base_values = X[[base_feature]].values[:,0]
+    min_base_value = max(int(np.min(base_values)), 1)
+    max_base_value = int(np.max(base_values))
+    mape_for_value = {}
+    num_obs_for_value = {}
+    base_range = range(min_base_value, max_base_value + 1)
     preds = model.predict(X, year)
-    for i in baseRange:
-        inds = (baseValues == i)
+    for i in base_range:
+        inds = (base_values == i)
         if np.any(inds):
-            mapeForValue[i] = np.mean(np.abs(preds[inds] - y[inds]) / y[inds])
-            numObsForValue[i] = inds.sum()
-    s = [4720 * numObsForValue[k] / (1.0 * X.shape[0]) for k in mapeForValue.keys()]
-    plt.scatter(np.array(mapeForValue.keys()),
-                [mapeForValue[i] for i in mapeForValue.keys()],
+            mape_for_value[i] = np.mean(np.abs(preds[inds] - y[inds]) / y[inds])
+            num_obs_for_value[i] = inds.sum()
+    s = [4720 * num_obs_for_value[k] / (1.0 * X.shape[0]) for k in mape_for_value.keys()]
+    plt.scatter(np.array(mape_for_value.keys()),
+                [mape_for_value[i] for i in mape_for_value.keys()],
                  s = s)
 
-    if "citation" in baseFeature.lower():
+    if "citation" in base_feature.lower():
         xlab = "# Citations in 2005"
         xscale = "log"
-    elif "hindex" in baseFeature.lower():
+    elif "hindex" in base_feature.lower():
         xlab = "H-Index in 2005"
         xscale = "linear"
         plt.xlim(left = 0)
-    elif "age" in baseFeature.lower():
+    elif "age" in base_feature.lower():
         xlab = "Age in 2005"
         xscale = "linear"
         plt.xlim(left=0)
@@ -82,59 +82,59 @@ def plotMAPEPerCount(model, X, y, year, baseFeature, name = None):
     plt.ylabel("% Error", fontsize=20)
     #plt.ylim(bottom=0)
     plt.xscale(xscale)
-    reformatAxes()
+    reformat_axes()
     if name != None:
         plt.savefig("plots/" + name + ".pdf")
         plt.close()
     else:
         plt.show()
         plt.close()
-        
-def plotAPEScatter(model, X, y, year, baseFeature, name=None, heatMap=False):
-    baseValues = X[[baseFeature]].values[:,0]
-    preds = model.predict(X, year)
-    nonZeroInds = np.where(y != 0)
-    allApes = (preds - y) / y
-    allApes = allApes[nonZeroInds]
 
-    if "citation" in baseFeature.lower():
+def plot_ape_scatter(model, X, y, year, base_feature, name=None, heat_map=False):
+    base_values = X[[base_feature]].values[:,0]
+    preds = model.predict(X, year)
+    non_zero_inds = np.where(y != 0)
+    all_apes = (preds - y) / y
+    all_apes = all_apes[non_zero_inds]
+
+    if "citation" in base_feature.lower():
         xlab = "Citations in 2005"
         xscale = "log"
-    elif "hindex" in baseFeature.lower():
+    elif "hindex" in base_feature.lower():
         xlab = "H-Index in 2005"
         xscale = "linear"
-    elif "author_age" in baseFeature.lower():
+    elif "author_age" in base_feature.lower():
         xlab = "Length of Author Career in 2005"
         xscale = "linear"
-    elif "paper_age" in baseFeature.lower():
+    elif "paper_age" in base_feature.lower():
         xlab = "Paper Age in 2005"
         xscale = "linear"
     else:
         raise Exception("Invalid base feature.")
 
-    baseValues = baseValues[nonZeroInds]
-    if heatMap:
-        xyAll = np.vstack([baseValues, allApes])
-        uniqueBases = np.unique(baseValues)
-        for base in uniqueBases:
-            y = xyAll[:, xyAll[0,:] == base][1]
+    base_values = base_values[non_zero_inds]
+    if heat_map:
+        xy_all = np.vstack([base_values, all_apes])
+        unique_bases = np.unique(base_values)
+        for base in unique_bases:
+            y = xy_all[:, xy_all[0,:] == base][1]
             z = gaussian_kde(y)(y)
             idx = z.argsort()
             y, z = y[idx], z[idx]
             plt.scatter(np.repeat(base, len(y)), y, c=cm.jet(z / np.max(z)), s=20, edgecolor='')
     else:
-        plt.scatter(baseValues, allApes, s=20, edgecolor='')
+        plt.scatter(base_values, all_apes, s=20, edgecolor='')
     plt.xlabel(xlab, fontsize=20)
     plt.ylabel("% Error after 10 Years", fontsize=20)
     plt.xscale(xscale)
     plt.xlim(left=0)
     plt.ylim(bottom=-1.5)
-    reformatAxes()
+    reformat_axes()
     if name != None:
-        if heatMap:
+        if heat_map:
             fig = plt.gcf()
             fig.set_size_inches(12, 4)
-            reformatAxes()
+            reformat_axes()
             plt.savefig("plots/heat-" + name + ".pdf")
         else:
             plt.savefig("plots/" + name + ".pdf")
@@ -143,32 +143,32 @@ def plotAPEScatter(model, X, y, year, baseFeature, name=None, heatMap=False):
         plt.show()
         plt.close()
 
-def plotRSquared(rsqDf, name = None, colors = None, markers = None,
+def plot_r_squared(rsq_df, name = None, colors = None, markers = None,
                  xlabel="Past Adjusted $R^2$"):
-    predYears = rsqDf.columns.values
+    pred_years = rsq_df.columns.values
     if colors is None:
-        colors = cm.rainbow(np.linspace(0, 1, rsqDf.shape[0]))
+        colors = cm.rainbow(np.linspace(0, 1, rsq_df.shape[0]))
     if markers is None:
-        markers = np.repeat("o", rsqDf.shape[0])
-    modelNames = rsqDf.index
+        markers = np.repeat("o", rsq_df.shape[0])
+    model_names = rsq_df.index
 
-    #offsets = np.linspace(-.18, .18, len(modelNames))
-    offsets = np.zeros(len(modelNames))
-    order = np.argsort(rsqDf.values[:, -1])
-    for i in range(rsqDf.shape[0]):
-        darkColor = np.copy(colors[i])
-        darkColor[0:3] = darkColor[0:3] / 2.0
+    #offsets = np.linspace(-.18, .18, len(model_names))
+    offsets = np.zeros(len(model_names))
+    order = np.argsort(rsq_df.values[:, -1])
+    for i in range(rsq_df.shape[0]):
+        dark_color = np.copy(colors[i])
+        dark_color[0:3] = dark_color[0:3] / 2.0
         s = 80
         markersize = 10
         if markers[i] == "*":
             s = 150
             markersize = 13
-        plt.plot(predYears + offsets[np.where(order == i)], rsqDf.values[i,:], color=colors[i],
-                 label=modelNames[i], marker=markers[i], markersize=markersize, markerfacecolor=darkColor,
-                 markeredgecolor=darkColor, markeredgewidth=0.5, zorder=1, lw=3)
-        plt.scatter(predYears + offsets[np.where(order == i)], rsqDf.values[i,:], color=darkColor,
+        plt.plot(pred_years + offsets[np.where(order == i)], rsq_df.values[i,:], color=colors[i],
+                 label=model_names[i], marker=markers[i], markersize=markersize, markerfacecolor=dark_color,
+                 markeredgecolor=dark_color, markeredgewidth=0.5, zorder=1, lw=3)
+        plt.scatter(pred_years + offsets[np.where(order == i)], rsq_df.values[i,:], color=dark_color,
                     marker=markers[i],
-                    s=s, zorder=2, lw=0.5, edgecolor=darkColor)
+                    s=s, zorder=2, lw=0.5, edgecolor=dark_color)
 
     plt.margins(x=0.05)
     handles, labels = plt.gca().get_legend_handles_labels()
@@ -177,17 +177,17 @@ def plotRSquared(rsqDf, name = None, colors = None, markers = None,
     plt.ylim(top=min(1.0, ymax))
     plt.xlabel("Year", fontsize=20)
     plt.ylabel(xlabel, fontsize=20)
-    reformatAxes()
+    reformat_axes()
     if name != None:
         plt.savefig("plots/" + name + ".pdf")
     else:
         plt.show()
     plt.close()
 
-def reformatAxes():
+def reformat_axes():
     ax = plt.gca()
     try:
-        ax.ticklabel_format(useOffset=False)
+        ax.ticklabel_format(use_offset=False)
     except AttributeError:
         1 # Do nothing
     ax.tick_params(axis='x', labelsize=20)

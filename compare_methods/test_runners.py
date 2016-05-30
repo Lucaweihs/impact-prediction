@@ -6,160 +6,170 @@ import data_manipulation as dm
 from error_tables import *
 from misc_functions import *
 
-def runTests(config):
-    X = dm.readData(config.featuresPath)
-    Y = dm.readData(config.responsesPath)
+def run_tests(config):
+    X = dm.read_data(config.features_path)
+    Y = dm.read_data(config.responses_path)
     Y = Y.select(lambda x: config.measure in x.lower(), axis=1)
-    histories = dm.readHistories(config.historyPath)
+    histories = dm.read_histories(config.history_path)
     for history in histories:
         history[1:] = history[1:] - history[:-1]
 
-    trainInds, validInds, testInds = dm.getTrainValidTestIndsFromConfig(config)
-    trainX, validX, testX = dm.getTrainValidTestData(X, trainInds, validInds, testInds)
-    trainY, validY, testY = dm.getTrainValidTestData(Y, trainInds, validInds, testInds)
-    trainHistories, validHistories, testHistories = \
-        dm.getTrainValidTestHistories(histories, trainInds, validInds, testInds)
-    pickleSuffix = config.fullSuffix + ".pickle"
-    baseFeature = config.baseFeature
-    deltaFeature = config.deltaFeature
+    train_inds, valid_inds, test_inds = dm.get_train_valid_test_inds_from_config(config)
+    train_x, valid_x, test_x = dm.get_train_valid_test_data(X, train_inds, valid_inds, test_inds)
+    train_y, valid_y, test_y = dm.get_train_valid_test_data(Y, train_inds, valid_inds, test_inds)
+    train_histories, valid_histories, test_histories = \
+        dm.get_train_valid_test_histories(histories, train_inds, valid_inds, test_inds)
+    pickle_suffix = config.full_suffix + ".pickle"
+    base_feature = config.base_feature
+    delta_feature = config.delta_feature
 
     protocol = pickle.HIGHEST_PROTOCOL
 
     print("Training constant model.\n")
-    constant = ConstantModel(trainX, trainY, baseFeature)
+    constant = ConstantModel(train_x, train_y, base_feature)
 
     print("Training optimal plus fixed k model.\n")
-    fixedKOptimal = PlusKBaselineModel(trainX, trainY, baseFeature)
+    fixed_k_optimal = PlusKBaselineModel(train_x, train_y, base_feature)
 
     print("Training simple model.\n")
-    if not os.path.exists("data/simpleLinear-" + pickleSuffix):
-        simpleLinear = SimpleLinearModel(trainX, trainY, baseFeature, deltaFeature)
-        pickle.dump(simpleLinear, open("data/simpleLinear-" + pickleSuffix, "wb"), protocol)
+    if not os.path.exists("data/simple_linear-" + pickle_suffix):
+        simple_linear = SimpleLinearModel(train_x, train_y, base_feature, delta_feature)
+        pickle.dump(simple_linear, open("data/simple_linear-" + pickle_suffix, "wb"), protocol)
     else:
-        simpleLinear = pickle.load(open("data/simpleLinear-" + pickleSuffix, "rb"))
+        simple_linear = pickle.load(open("data/simple_linear-" + pickle_suffix, "rb"))
 
     print("Training lasso model.\n")
-    if not os.path.exists("data/lasso-" + pickleSuffix):
-        lasso = LassoModel(trainX, trainY, baseFeature)
-        pickle.dump(lasso, open("data/lasso-" + pickleSuffix, "wb"), protocol)
+    if not os.path.exists("data/lasso-" + pickle_suffix):
+        lasso = LassoModel(train_x, train_y, base_feature)
+        pickle.dump(lasso, open("data/lasso-" + pickle_suffix, "wb"), protocol)
     else:
-        lasso = pickle.load(open("data/lasso-" + pickleSuffix, "rb"))
+        lasso = pickle.load(open("data/lasso-" + pickle_suffix, "rb"))
 
     print("Training random forest model.\n")
-    rfPath = "data/rf-" + pickleSuffix + ".bz2"
-    if not os.path.exists(rfPath):
-        rf = RandomForestModel(trainX, trainY, baseFeature)
-        dumpPickleWithZip(rf, rfPath)
+    rf_path = "data/rf-" + pickle_suffix + ".bz2"
+    if not os.path.exists(rf_path):
+        rf = RandomForestModel(train_x, train_y, base_feature)
+        dump_pickle_with_zip(rf, rf_path)
     else:
-        rf = readPickleWithZip(rfPath)
+        rf = read_pickle_with_zip(rf_path)
 
     print("Training gradient boost model.\n")
-    if not os.path.exists("data/gb-" + pickleSuffix):
-        gb = GradientBoostModel(trainX, trainY, baseFeature)
-        pickle.dump(gb, open("data/gb-" + pickleSuffix, "wb"), protocol)
+    if not os.path.exists("data/gb-" + pickle_suffix):
+        gb = GradientBoostModel(train_x, train_y, base_feature)
+        pickle.dump(gb, open("data/gb-" + pickle_suffix, "wb"), protocol)
     else:
-        gb = pickle.load(open("data/gb-" + pickleSuffix, "rb"))
+        gb = pickle.load(open("data/gb-" + pickle_suffix, "rb"))
 
-    baselineModels = [constant, fixedKOptimal, simpleLinear]
-    mlModels = [lasso, rf, gb]
+    baseline_models = [constant, fixed_k_optimal, simple_linear]
+    ml_models = [lasso, rf, gb]
 
-    if config.docType == "paper":
+    if config.doc_type == "paper":
         print("Training RPPNet models.\n")
-        rpp_suffix = pickleSuffix.split(".")[0]
-        rpp_net = RPPNetWrapper(trainX, trainHistories, trainY, "data/rpp-tf-" + rpp_suffix)
-        mlModels.insert(0, rpp_net)
-        #rppWith = RPPStub(config, trainX, validX, testX)
-        #rppWithout = RPPStub(config, trainX, validX, testX, False)
-        #mlModels.insert(0, rppWith)
-        #mlModels.insert(0, rppWithout)
+        rpp_suffix = pickle_suffix.split(".")[0]
+        rpp_net = RPPNetWrapper(train_x, train_histories, train_y, "data/rpp-tf-" + rpp_suffix, maxiter=20)
+        ml_models.insert(0, rpp_net)
+        rpp_with = RPPStub(config, train_x, valid_x, test_x)
+        rpp_without = RPPStub(config, train_x, valid_x, test_x, False)
+        ml_models.insert(0, rpp_with)
+        ml_models.insert(0, rpp_without)
 
-    numBaseline = len(baselineModels)
-    numMl = len(mlModels)
+    num_baseline = len(baseline_models)
+    num_ml = len(ml_models)
     np.random.seed(23498)
     colors = cm.rainbow(np.linspace(0, 1, 12))
     markers = np.array(['o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'h', 'H', 'D', 'd'])
     np.random.shuffle(colors)
     np.random.shuffle(markers)
-    baselineColors = list(colors[range(numBaseline)])
-    baselineMarkers = list(markers[range(numBaseline)])
-    mlColors = list(colors[range(numBaseline, numBaseline + numMl)])
-    mlMarkers = list(markers[range(numBaseline, numBaseline + numMl)])
+    baseline_colors = list(colors[range(num_baseline)])
+    baseline_markers = list(markers[range(num_baseline)])
+    ml_colors = list(colors[range(num_baseline, num_baseline + num_ml)])
+    ml_markers = list(markers[range(num_baseline, num_baseline + num_ml)])
 
-    predStartYear = config.sourceYear + 1
-    plotSuffix = config.fullSuffix.replace(":", "_")
+    pred_start_year = config.source_year + 1
+    plot_suffix = config.full_suffix.replace(":", "_").replace(",", "_")
 
-    # MAPE tables and plots
-    if config.docType == "paper":
-        rpp_net.set_prediction_histories(testHistories)
-    mapeTestName = "mape-test-ml-" + plotSuffix
-    mapesDf, errorsDf = mape_table(mlModels, testX, testY, predStartYear, mapeTestName)
-    plotMAPE(mapesDf, errorsDf, mapeTestName, colors=mlColors, markers=mlMarkers)
+    # if config.doc_type == "paper":
+    #     rpp_net.set_prediction_histories(train_histories)
+    # mape_train_name = "mape-train-" + plot_suffix
+    # mapes_df, errors_df = mape_table(baseline_models + ml_models, train_x, train_y, pred_start_year, mape_train_name)
+    # plot_mape(mapes_df, errors_df, mape_train_name, colors=baseline_colors + ml_colors,
+    #          markers=baseline_markers + ml_markers)
 
-    if config.docType == "paper":
-        rpp_net.set_prediction_histories(validHistories)
-    mapeValidName = "mape-valid-ml-" + plotSuffix
-    validMapesDf, _ = mape_table(mlModels, validX, validY, predStartYear, mapeValidName)
+    #MAPE tables and plots
+    if config.doc_type == "paper":
+        rpp_net.set_prediction_histories(test_histories)
+    mape_test_name = "mape-test-ml-" + plot_suffix
+    mapes_df, errors_df = mape_table(ml_models, test_x, test_y, pred_start_year, mape_test_name)
+    plot_mape(mapes_df, errors_df, mape_test_name, colors=ml_colors, markers=ml_markers)
 
-    if config.docType == "paper":
-        rpp_net.set_prediction_histories(testHistories)
-    top1Ml = nArgMin(validMapesDf.values[:,-1], 1)
-    models = baselineModels + listInds(mlModels, top1Ml)
-    colors = baselineColors + listInds(mlColors, top1Ml)
-    markers = baselineMarkers + listInds(mlMarkers, top1Ml)
-    mapeTestName = "mape-test-baseline-" + plotSuffix
-    mapesDf, errorsDf = mape_table(models, testX, testY, predStartYear, mapeTestName)
-    plotMAPE(mapesDf, errorsDf, mapeTestName, colors=colors, markers=markers)
+    if config.doc_type == "paper":
+        rpp_net.set_prediction_histories(valid_histories)
+    mape_valid_name = "mape-valid-ml-" + plot_suffix
+    valid_mapes_df, valid_errors_df = mape_table(ml_models, valid_x, valid_y, pred_start_year, mape_valid_name)
+    plot_mape(valid_mapes_df, valid_errors_df, mape_valid_name, colors=baseline_colors + ml_colors,
+             markers=baseline_markers + ml_markers)
 
-    if config.docType == "paper":
-        rpp_net.set_prediction_histories(trainHistories)
-    mapeTrainName = "mape-train-" + plotSuffix
-    mapesDf, errorsDf = mape_table(baselineModels + mlModels, trainX, trainY, predStartYear, mapeTrainName)
-    plotMAPE(mapesDf, errorsDf, mapeTrainName, colors=baselineColors + mlColors,
-             markers=baselineMarkers + mlMarkers)
+    if config.doc_type == "paper":
+        rpp_net.set_prediction_histories(test_histories)
+    top1_ml = n_arg_min(valid_mapes_df.values[:,-1], 1)
+    models = baseline_models + list_inds(ml_models, top1_ml)
+    colors = baseline_colors + list_inds(ml_colors, top1_ml)
+    markers = baseline_markers + list_inds(ml_markers, top1_ml)
+    mape_test_name = "mape-test-baseline-" + plot_suffix
+    mapes_df, errors_df = mape_table(models, test_x, test_y, pred_start_year, mape_test_name)
+    plot_mape(mapes_df, errors_df, mape_test_name, colors=colors, markers=markers)
+
+    if config.doc_type == "paper":
+        rpp_net.set_prediction_histories(train_histories)
+    mape_train_name = "mape-train-" + plot_suffix
+    mapes_df, errors_df = mape_table(baseline_models + ml_models, train_x, train_y, pred_start_year, mape_train_name)
+    plot_mape(mapes_df, errors_df, mape_train_name, colors=baseline_colors + ml_colors,
+             markers=baseline_markers + ml_markers)
 
     # PA-R^2 tables and plots
-    if config.docType == "paper":
-        rpp_net.set_prediction_histories(testHistories)
-    rsqTestName = "rsq-test-ml-" + plotSuffix
-    rsqDfMap = rsquared_tables(mlModels, testX, testY, baseFeature, predStartYear, rsqTestName)
-    plotRSquared(rsqDfMap["rsquare"], rsqTestName, mlColors, mlMarkers)
-    plotRSquared(rsqDfMap["rsquare-inflated"], "inflated-" + rsqTestName, mlColors, mlMarkers, xlabel="$R^2$")
+    if config.doc_type == "paper":
+        rpp_net.set_prediction_histories(test_histories)
+    rsq_test_name = "rsq-test-ml-" + plot_suffix
+    rsq_df_map = rsquared_tables(ml_models, test_x, test_y, base_feature, pred_start_year, rsq_test_name)
+    plot_r_squared(rsq_df_map["rsquare"], rsq_test_name, ml_colors, ml_markers)
+    plot_r_squared(rsq_df_map["rsquare-inflated"], "inflated-" + rsq_test_name, ml_colors, ml_markers, xlabel="$R^2$")
 
-    if config.docType == "paper":
-        rpp_net.set_prediction_histories(validHistories)
-    rsqValidName = "rsq-valid-ml-" + plotSuffix
-    validRsqDfMap = rsquared_tables(mlModels, validX, validY, baseFeature, predStartYear, rsqValidName)
+    if config.doc_type == "paper":
+        rpp_net.set_prediction_histories(valid_histories)
+    rsq_valid_name = "rsq-valid-ml-" + plot_suffix
+    valid_rsq_df_map = rsquared_tables(ml_models, valid_x, valid_y, base_feature, pred_start_year, rsq_valid_name)
 
-    if config.docType == "paper":
-        rpp_net.set_prediction_histories(testHistories)
-    rsqTestName = "rsq-test-baseline-" + plotSuffix
-    top1Ml = nArgMax(validRsqDfMap["rsquare"].values[:, -1], 1)
-    models = baselineModels + listInds(mlModels, top1Ml)
-    colors = baselineColors + listInds(mlColors, top1Ml)
-    markers = baselineMarkers + listInds(mlMarkers, top1Ml)
-    baselineRsqDfMap = rsquared_tables(models, testX, testY, baseFeature, predStartYear, rsqTestName)
-    plotRSquared(baselineRsqDfMap["rsquare"], rsqTestName, colors, markers)
-    plotRSquared(baselineRsqDfMap["rsquare-inflated"], "inflated-" + rsqTestName, colors, markers, xlabel="$R^2$")
+    if config.doc_type == "paper":
+        rpp_net.set_prediction_histories(test_histories)
+    rsq_test_name = "rsq-test-baseline-" + plot_suffix
+    top1_ml = n_arg_max(valid_rsq_df_map["rsquare"].values[:, -1], 1)
+    models = baseline_models + list_inds(ml_models, top1_ml)
+    colors = baseline_colors + list_inds(ml_colors, top1_ml)
+    markers = baseline_markers + list_inds(ml_markers, top1_ml)
+    baseline_rsq_df_map = rsquared_tables(models, test_x, test_y, base_feature, pred_start_year, rsq_test_name)
+    plot_r_squared(baseline_rsq_df_map["rsquare"], rsq_test_name, colors, markers)
+    plot_r_squared(baseline_rsq_df_map["rsquare-inflated"], "inflated-" + rsq_test_name, colors, markers, xlabel="$R^2$")
 
-    if config.docType == "paper":
-        rpp_net.set_prediction_histories(trainHistories)
-    rsqTrainName = "rsq-train-" + plotSuffix
-    rsqDfMap = rsquared_tables(baselineModels + mlModels, trainX, trainY, baseFeature, predStartYear, rsqTrainName)
-    plotRSquared(rsqDfMap["rsquare"], rsqTrainName, colors=baselineColors + mlColors,
-             markers=baselineMarkers + mlMarkers)
+    if config.doc_type == "paper":
+        rpp_net.set_prediction_histories(train_histories)
+    rsq_train_name = "rsq-train-" + plot_suffix
+    rsq_df_map = rsquared_tables(baseline_models + ml_models, train_x, train_y, base_feature, pred_start_year, rsq_train_name)
+    plot_r_squared(rsq_df_map["rsquare"], rsq_train_name, colors=baseline_colors + ml_colors,
+             markers=baseline_markers + ml_markers)
 
     year = Y.shape[1]
 
-    apeScatterFileName = "ape-" + config.fullSuffix
-    plotAPEScatter(gb, testX, testY.values[:, year - 1], year, config.ageFeature, apeScatterFileName, heatMap=False)
-    plotAPEScatter(gb, testX, testY.values[:, year - 1], year, config.ageFeature, apeScatterFileName, heatMap=True)
+    ape_scatter_file_name = "ape-" + config.full_suffix
+    plot_ape_scatter(gb, test_x, test_y.values[:, year - 1], year, config.age_feature, ape_scatter_file_name, heat_map=False)
+    plot_ape_scatter(gb, test_x, test_y.values[:, year - 1], year, config.age_feature, ape_scatter_file_name, heat_map=True)
 
-    mapePlotFileName = "mapePerCountGB-" + config.fullSuffix
-    plotMAPEPerCount(gb, testX, testY.values[:, year - 1], year, baseFeature, mapePlotFileName)
+    mape_plot_file_name = "mape_per_count_gb-" + config.full_suffix
+    plot_mape_per_count(gb, test_x, test_y.values[:, year - 1], year, base_feature, mape_plot_file_name)
 
-    mapePlotFileName = "mapePerAgeGB-" + config.fullSuffix
-    plotMAPEPerCount(gb, testX, testY.values[:, year - 1], year, config.ageFeature, mapePlotFileName)
+    mape_plot_file_name = "mape_per_age_gb-" + config.full_suffix
+    plot_mape_per_count(gb, test_x, test_y.values[:, year - 1], year, config.age_feature, mape_plot_file_name)
 
-    if config.docType == "paper":
-        mapePlotFileName = "mapePerAgeRPP-" + config.fullSuffix
-        plotMAPEPerCount(rppWith, testX, testY.values[:, year - 1], year, config.ageFeature, mapePlotFileName)
+    if config.doc_type == "paper":
+        mape_plot_file_name = "mape_per_age_rpp-" + config.full_suffix
+        rpp_net.set_prediction_histories(test_histories)
+        plot_mape_per_count(rpp_net, test_x, test_y.values[:, year - 1], year, config.age_feature, mape_plot_file_name)

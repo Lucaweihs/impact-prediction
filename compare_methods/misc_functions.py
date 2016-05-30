@@ -1,26 +1,26 @@
-def nArgMax(l, n):
+def n_arg_max(l, n):
   return [v[1] for v in sorted(zip(l, range(len(l))), key=lambda x: -x[0])[:n]]
 
-def nArgMin(l, n):
+def n_arg_min(l, n):
   return [v[1] for v in sorted(zip(l, range(len(l))), key=lambda x: x[0])[:n]]
 
-def listInds(l, inds):
+def list_inds(l, inds):
     return [l[i] for i in inds]
 
-def filtersStringToFilters(filtersString):
-    if filtersString == "":
+def filters_string_to_filters(filters_string):
+    if filters_string == "":
         return ({}, "")
-    filterPairStrings = filtersString.split(";")
-    filterPairStrings.sort()
+    filter_pair_strings = filters_string.split(";")
+    filter_pair_strings.sort()
     filters = {}
-    for filterPair in filterPairStrings:
-        field, minMaxString = filterPair.split(":")
-        minMax = [float(val) for val in minMaxString.split(",")]
-        assert(len(minMax) == 1 or len(minMax) == 2)
-        if len(minMax) == 1:
-            minMax.append(float("inf"))
-        filters[field] = minMax
-    return (filters, "-".join(filterPairStrings))
+    for filter_pair in filter_pair_strings:
+        field, min_max_string = filter_pair.split(":")
+        min_max = [float(val) for val in min_max_string.split(",")]
+        assert(len(min_max) == 1 or len(min_max) == 2)
+        if len(min_max) == 1:
+            min_max.append(float("inf"))
+        filters[field] = min_max
+    return (filters, "-".join(filter_pair_strings))
 
 def which(program):
     import os
@@ -44,7 +44,7 @@ NORMAL = 0    # use python zip libraries
 PROCESS = 1   # use (zcat, gzip) or (bzcat, bzip2)
 PARALLEL = 2  # (pigz -dc, pigz) or (pbzip2 -dc, pbzip2)
 
-def anyOpen(filename, mode='r', buff=1024*1024, external=PARALLEL):
+def any_open(filename, mode='r', buff=1024*1024, external=PARALLEL):
     if 'r' in mode and 'w' in mode:
         return None
     if filename.startswith('!'):
@@ -61,53 +61,53 @@ def anyOpen(filename, mode='r', buff=1024*1024, external=PARALLEL):
             return bz2.BZ2File(filename, mode, buff)
         elif external == PROCESS:
             if not which('bzip2'):
-                return anyOpen(filename, mode, buff, NORMAL)
+                return any_open(filename, mode, buff, NORMAL)
             if 'r' in mode:
-                return anyOpen('!bzip2 -dc ' + filename, mode, buff)
+                return any_open('!bzip2 -dc ' + filename, mode, buff)
             elif 'w' in mode:
-                return anyOpen('!bzip2 >' + filename, mode, buff)
+                return any_open('!bzip2 >' + filename, mode, buff)
         elif external == PARALLEL:
             if not which('pbzip2'):
-                return anyOpen(filename, mode, buff, PROCESS)
+                return any_open(filename, mode, buff, PROCESS)
             if 'r' in mode:
-                return anyOpen('!pbzip2 -dc ' + filename, mode, buff)
+                return any_open('!pbzip2 -dc ' + filename, mode, buff)
             elif 'w' in mode:
-                return anyOpen('!pbzip2 >' + filename, mode, buff)
+                return any_open('!pbzip2 >' + filename, mode, buff)
     elif filename.endswith('.gz'):
         if external == NORMAL:
             import gzip
             return gzip.GzipFile(filename, mode, buff)
         elif external == PROCESS:
             if not which('gzip'):
-                return anyOpen(filename, mode, buff, NORMAL)
+                return any_open(filename, mode, buff, NORMAL)
             if 'r' in mode:
-                return anyOpen('!gzip -dc ' + filename, mode, buff)
+                return any_open('!gzip -dc ' + filename, mode, buff)
             elif 'w' in mode:
-                return anyOpen('!gzip >' + filename, mode, buff)
+                return any_open('!gzip >' + filename, mode, buff)
         elif external == PARALLEL:
             if not which('pigz'):
-                return anyOpen(filename, mode, buff, PROCESS)
+                return any_open(filename, mode, buff, PROCESS)
             if 'r' in mode:
-                return anyOpen('!pigz -dc ' + filename, mode, buff)
+                return any_open('!pigz -dc ' + filename, mode, buff)
             elif 'w' in mode:
-                return anyOpen('!pigz >' + filename, mode, buff)
+                return any_open('!pigz >' + filename, mode, buff)
     elif filename.endswith('.xz'):
         if which('xz'):
             if 'r' in mode:
-                return anyOpen('!xz -dc ' + filename, mode, buff)
+                return any_open('!xz -dc ' + filename, mode, buff)
             elif 'w' in mode:
-                return anyOpen('!xz >' + filename, mode, buff)
+                return any_open('!xz >' + filename, mode, buff)
     else:
         return open(filename, mode, buff)
     return None
 
-def dumpPickleWithZip(obj, filePath):
+def dump_pickle_with_zip(obj, file_path):
     import cPickle as pickle
-    with anyOpen(filePath, 'w') as f:
+    with any_open(file_path, 'w') as f:
         pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
 
-def readPickleWithZip(filePath):
+def read_pickle_with_zip(file_path):
     import cPickle as pickle
-    with anyOpen(filePath, 'r') as f:
+    with any_open(file_path, 'r') as f:
         obj = pickle.load(f)
     return obj
