@@ -1,16 +1,18 @@
+import cPickle as pickle
+import multiprocessing
+import os
+
+import numpy as np
+import scipy.optimize as optimize
 import scipy.stats as stats
+import tensorflow as tf
+from joblib import Parallel, delayed
 from scipy.special import gammaln as log_gamma
 from scipy.special import psi as digamma
-import scipy.optimize as optimize
-import numpy as np
 from sklearn import preprocessing
-from joblib import Parallel, delayed
-import multiprocessing
-import math
-import os
-import cPickle as pickle
 
-import tensorflow as tf
+CORES_TO_USE = multiprocessing.cpu_count()
+OPTIM_METHOD = "L-BFGS-B"
 
 def _rpp_neg_loglike(alpha, beta, N, cite_diff_sum, const_wrt_alpha_beta):
     return tf.reduce_mean(-(const_wrt_alpha_beta + alpha * tf.log(beta) -
@@ -25,55 +27,31 @@ def _rpp_loss(alpha, beta, N, cite_diff_sum, const_wrt_alpha_beta, gamma):
                   _rpp_squared_prior_mean_penalty(alpha, beta, gamma),
                   name="rpp_loss")
 
-def _rpp_one_layer_alpha_beta(x, num_features):
-    with tf.name_scope('only_layer'):
-        w1 = tf.Variable(
-            tf.zeros([num_features, 2]),
-            name="w1"
+def _rpp_one_layer_alpha_beta(x, keep_prob, num_features):
+    x_drop = tf.nn.dropout(x, keep_prob)
+    return _fc_layer(x_drop, num_features, 2, tf.nn.softplus, "out") + 0.001
+
+def _fc_layer(inputs, in_size, out_size, non_lin_func, id = ""):
+    with tf.name_scope('layer_' + id):
+        w = tf.Variable(
+            tf.zeros([in_size, out_size]),
+            name="w_" + id
         )
-        b1 = tf.Variable(tf.zeros([2]) + 1, name="b1")
-        fc_1 = tf.nn.softplus(tf.matmul(x, w1) + b1) + .001
-    return fc_1
+        b = tf.Variable(tf.zeros([out_size]), name="b_" + id)
+        fc = non_lin_func(tf.matmul(inputs, w) + b)
+    return fc
+
+def _fc_relu_layer(inputs, in_size, out_size, id = ""):
+    return _fc_layer(inputs, in_size, out_size, tf.nn.relu, id = id)
 
 def _rpp_multi_layer_alpha_beta(x, keep_prob, num_features):
-    with tf.name_scope('layer1'):
-        num_out1 = int(num_features / 2)
-        w1 = tf.Variable(
-            tf.zeros([num_features, num_out1]),
-            name="w1"
-        )
-        b1 = tf.Variable(tf.zeros([num_out1]), name="b1")
-        fc_1 = tf.nn.relu(tf.matmul(x, w1) + b1)
-
-    with tf.name_scope('layer2'):
-        num_out2 = int(num_out1 / 2)
-        w2 = tf.Variable(
-            tf.zeros([num_out1, num_out2]),
-            name="w2"
-        )
-        b2 = tf.Variable(tf.zeros([num_out2]), name="b2")
-        fc_2 = tf.nn.relu(tf.matmul(fc_1, w2) + b2)
-
-    with tf.name_scope('layer3'):
-        num_out3 = int(num_out2 / 2)
-        w3 = tf.Variable(
-            tf.zeros([num_out2, num_out3]),
-            name="w3"
-        )
-        b3 = tf.Variable(tf.zeros([num_out3]), name="b3")
-        fc_3 = tf.nn.relu(tf.matmul(fc_2, w3) + b3)
-
-    fc_3_drop = tf.nn.dropout(fc_3, keep_prob)
-
-    with tf.name_scope('layer4'):
-        num_out4 = 2
-        w4 = tf.Variable(
-            tf.zeros([num_out3, num_out4]),
-            name="w4"
-        )
-        b4 = tf.Variable(tf.zeros([num_out4]) + 1, name="b3")
-        fc_4 = tf.nn.softplus(tf.matmul(fc_3_drop, w4) + b4) + .001
-    return fc_4
+    fc_1 = _fc_relu_layer(x, num_features, 12, "1")
+    fc_2 = _fc_relu_layer(fc_1, 12, 8, "2")
+    fc_3 = _fc_relu_layer(fc_2, 8, 8, "3")
+    fc_4 = _fc_relu_layer(fc_3, 8, 8, "4")
+    fc_5 = tf.nn.dropout(_fc_relu_layer(fc_4, 8, 8, "5"), keep_prob)
+    fc_out = _fc_layer(fc_5, 8, 2, tf.nn.softplus, "out") + .001
+    return fc_out
 
 def _rpp_train(loss):
     optimizer = tf.train.AdamOptimizer()
@@ -252,7 +230,7 @@ class RPP(object):
         return np.mean(preds, axis = 0)
 
 
-def _set_rpp_alpha_beta_and_optimize_mean_and_sd(rpp, alpha_beta, maxiter=10):
+def _set_rpp_alpha_beta_and_optimize_mean_and_sd(rpp, alpha_beta, maxiter=5):
     rpp.alpha = alpha_beta[0]
     rpp.beta = alpha_beta[1]
     return RPPNet.optimize_rpp_mean_sd(rpp, maxiter)
@@ -261,7 +239,7 @@ def _rpp_predict_in_n_years(rpp, n):
     return rpp.predict_n_years(n)
 
 class RPPNet(object):
-    def __init__(self, gamma, model_save_path = None, maxiter=1000):
+    def __init__(self, gamma, model_save_path = None, maxiter=10):
         self.maxiter = maxiter
         self._gamma = gamma
         self._scaler = None
@@ -285,7 +263,7 @@ class RPPNet(object):
         return self._is_fit
 
     @staticmethod
-    def optimize_rpp_mean_sd(rpp, maxiter=10):
+    def optimize_rpp_mean_sd(rpp, maxiter):
         def obj(x):
             return -rpp.loglikelihood(alpha=rpp.alpha, beta=rpp.beta,
                                       mean=x[0], sd=x[1])
@@ -297,7 +275,7 @@ class RPPNet(object):
         result = optimize.minimize(
             obj,
             np.array([rpp.mean, rpp.sd]),
-            method="L-BFGS-B",
+            method=OPTIM_METHOD,
             jac=grad,
             bounds=[(-1, None), (.1, None)],
             options={"disp": False, "maxiter": maxiter})
@@ -307,30 +285,31 @@ class RPPNet(object):
         rpp.sd = result.x[1]
         return rpp
 
-    def _optimize_alpha_beta_params(self, params, grad, obj):
-        result = optimize.minimize(obj,
-                                   params,
-                                   method="L-BFGS-B",
-                                   jac=grad,
-                                   options={"disp": False, "maxiter": 10})
-        if not result.success:
-            Warning("RPP alpha/beta optimization did not converge.")
-        return result.x
+    # def _optimize_alpha_beta_params(self, params, grad, obj):
+    #     result = optimize.minimize(obj,
+    #                                params,
+    #                                method=OPTIM_METHOD,
+    #                                jac=grad,
+    #                                options={"disp": False, "maxiter": 10})
+    #     if not result.success:
+    #         Warning("RPP alpha/beta optimization did not converge.")
+    #     return result.x
 
     def _optimize_means_sds(self, rpps, alpha_beta):
-        new_rpps = Parallel(n_jobs=multiprocessing.cpu_count())(
+        new_rpps = Parallel(n_jobs=CORES_TO_USE)(
             delayed(_set_rpp_alpha_beta_and_optimize_mean_and_sd)(rpps[i],
                                                                   alpha_beta[i, :]) \
             for i in range(len(rpps))
         )
+        #new_rpps = [_set_rpp_alpha_beta_and_optimize_mean_and_sd(rpps[i], alpha_beta[i,:]) for i in range(len(rpps))]
         return new_rpps
 
     def predict(self, X, histories, num_years):
-        X = self._scaler.transform(X)
+        X_scaled = self._scaler.transform(X)
 
         rpps = [RPP(histories[i]) for i in range(len(histories))]
         sess = self._sess
-        feed_dict = {self._X_ph: X,
+        feed_dict = {self._X_ph: X_scaled,
                      self._N_ph: np.zeros(len(rpps)),
                      self._cite_diff_sum_ph: np.zeros(len(rpps)),
                      self._keep_prob_ph: 1.0,
@@ -338,10 +317,11 @@ class RPPNet(object):
                      self._gamma_ph: self._gamma}
         rpps = self._optimize_means_sds(rpps, sess.run(self._alpha_beta_op, feed_dict=feed_dict))
 
-        preds = np.array(Parallel(n_jobs=multiprocessing.cpu_count())(
+        preds = np.array(Parallel(n_jobs=CORES_TO_USE)(
             delayed(_rpp_predict_in_n_years)(rpps[i], num_years) for i in range(len(rpps))))
+        #preds = [_rpp_predict_in_n_years(rpps[i], num_years) for i in range(len(rpps))]
 
-        return preds.T
+        return preds
 
     def _initialize_tf(self, num_features):
         if self._sess is not None:
@@ -354,7 +334,7 @@ class RPPNet(object):
         self._gamma_ph = tf.placeholder("float", [])
         self._keep_prob_ph = tf.placeholder("float", [])
         # Operations
-        self._alpha_beta_op = _rpp_multi_layer_alpha_beta(self._X_ph,
+        self._alpha_beta_op = _rpp_one_layer_alpha_beta(self._X_ph,
                                                           self._keep_prob_ph,
                                                           num_features)
         self._alpha_op = self._alpha_beta_op[:, 0]
@@ -405,8 +385,10 @@ class RPPNet(object):
                 #alpha_beta = sess.run(self._alpha_beta_op, feed_dict=feed_dict_test)
                 #print "Current obj 2 = " + str(np.mean([rpps[i].value_new(alpha_beta[i,]) for i in range(len(rpps))]))
             print "Optimizing alpha/beta"
-            for _ in range(1000):
-                sess.run(self._train_op, feed_dict=feed_dict_train)
+            for i in range(1000):
+                if i % 200 == 0:
+                    print "TF iter " + i + ", obj = " + str(sess.run(self._loss_op, feed_dict=feed_dict_test))
+                sess.run(self._train_op, feed_dict=feed_dict_test)
             print "Optimizing means/sds"
             rpps = self._optimize_means_sds(rpps, sess.run(self._alpha_beta_op, feed_dict=feed_dict_test))
             k += 1
