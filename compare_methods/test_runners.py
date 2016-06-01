@@ -66,12 +66,14 @@ def run_tests(config):
     if config.doc_type == "paper":
         print("Training RPPNet models.\n")
         rpp_suffix = pickle_suffix.split(".")[0]
-        rpp_net = RPPNetWrapper(train_x, train_histories, train_y, "data/rpp-tf-" + rpp_suffix, maxiter=20)
+        rpp_net = RPPNetWrapper(train_x, train_histories, train_y, "data/rpp-tf-" + rpp_suffix, maxiter=17, gamma=.1)
+        rpp_net_without = RPPNetWrapper(train_x, train_histories, train_y, "data/rpp-tf-none-" + rpp_suffix, maxiter=4, gamma=.7, with_features=False)
         ml_models.insert(0, rpp_net)
-        rpp_with = RPPStub(config, train_x, valid_x, test_x)
-        rpp_without = RPPStub(config, train_x, valid_x, test_x, False)
-        ml_models.insert(0, rpp_with)
-        ml_models.insert(0, rpp_without)
+        ml_models.insert(0, rpp_net_without)
+        #rpp_with = RPPStub(config, train_x, valid_x, test_x)
+        #rpp_without = RPPStub(config, train_x, valid_x, test_x, False)
+        #ml_models.insert(0, rpp_with)
+        #ml_models.insert(0, rpp_without)
 
     num_baseline = len(baseline_models)
     num_ml = len(ml_models)
@@ -88,22 +90,18 @@ def run_tests(config):
     pred_start_year = config.source_year + 1
     plot_suffix = config.full_suffix.replace(":", "_").replace(",", "_")
 
-    # if config.doc_type == "paper":
-    #     rpp_net.set_prediction_histories(train_histories)
-    # mape_train_name = "mape-train-" + plot_suffix
-    # mapes_df, errors_df = mape_table(baseline_models + ml_models, train_x, train_y, pred_start_year, mape_train_name)
-    # plot_mape(mapes_df, errors_df, mape_train_name, colors=baseline_colors + ml_colors,
-    #          markers=baseline_markers + ml_markers)
 
-    #MAPE tables and plots
+    # MAPE tables and plots
     if config.doc_type == "paper":
         rpp_net.set_prediction_histories(test_histories)
+        rpp_net_without.set_prediction_histories(test_histories)
     mape_test_name = "mape-test-ml-" + plot_suffix
     mapes_df, errors_df = mape_table(ml_models, test_x, test_y, pred_start_year, mape_test_name)
     plot_mape(mapes_df, errors_df, mape_test_name, colors=ml_colors, markers=ml_markers)
 
     if config.doc_type == "paper":
         rpp_net.set_prediction_histories(valid_histories)
+        rpp_net_without.set_prediction_histories(valid_histories)
     mape_valid_name = "mape-valid-ml-" + plot_suffix
     valid_mapes_df, valid_errors_df = mape_table(ml_models, valid_x, valid_y, pred_start_year, mape_valid_name)
     plot_mape(valid_mapes_df, valid_errors_df, mape_valid_name, colors=baseline_colors + ml_colors,
@@ -111,6 +109,7 @@ def run_tests(config):
 
     if config.doc_type == "paper":
         rpp_net.set_prediction_histories(test_histories)
+        rpp_net_without.set_prediction_histories(test_histories)
     top1_ml = n_arg_min(valid_mapes_df.values[:,-1], 1)
     models = baseline_models + list_inds(ml_models, top1_ml)
     colors = baseline_colors + list_inds(ml_colors, top1_ml)
@@ -121,6 +120,7 @@ def run_tests(config):
 
     if config.doc_type == "paper":
         rpp_net.set_prediction_histories(train_histories)
+        rpp_net_without.set_prediction_histories(train_histories)
     mape_train_name = "mape-train-" + plot_suffix
     mapes_df, errors_df = mape_table(baseline_models + ml_models, train_x, train_y, pred_start_year, mape_train_name)
     plot_mape(mapes_df, errors_df, mape_train_name, colors=baseline_colors + ml_colors,
@@ -129,6 +129,7 @@ def run_tests(config):
     # PA-R^2 tables and plots
     if config.doc_type == "paper":
         rpp_net.set_prediction_histories(test_histories)
+        rpp_net_without.set_prediction_histories(test_histories)
     rsq_test_name = "rsq-test-ml-" + plot_suffix
     rsq_df_map = rsquared_tables(ml_models, test_x, test_y, base_feature, pred_start_year, rsq_test_name)
     plot_r_squared(rsq_df_map["rsquare"], rsq_test_name, ml_colors, ml_markers)
@@ -136,11 +137,13 @@ def run_tests(config):
 
     if config.doc_type == "paper":
         rpp_net.set_prediction_histories(valid_histories)
+        rpp_net_without.set_prediction_histories(valid_histories)
     rsq_valid_name = "rsq-valid-ml-" + plot_suffix
     valid_rsq_df_map = rsquared_tables(ml_models, valid_x, valid_y, base_feature, pred_start_year, rsq_valid_name)
 
     if config.doc_type == "paper":
         rpp_net.set_prediction_histories(test_histories)
+        rpp_net_without.set_prediction_histories(test_histories)
     rsq_test_name = "rsq-test-baseline-" + plot_suffix
     top1_ml = n_arg_max(valid_rsq_df_map["rsquare"].values[:, -1], 1)
     models = baseline_models + list_inds(ml_models, top1_ml)
@@ -152,6 +155,7 @@ def run_tests(config):
 
     if config.doc_type == "paper":
         rpp_net.set_prediction_histories(train_histories)
+        rpp_net_without.set_prediction_histories(train_histories)
     rsq_train_name = "rsq-train-" + plot_suffix
     rsq_df_map = rsquared_tables(baseline_models + ml_models, train_x, train_y, base_feature, pred_start_year, rsq_train_name)
     plot_r_squared(rsq_df_map["rsquare"], rsq_train_name, colors=baseline_colors + ml_colors,

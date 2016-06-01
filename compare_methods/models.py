@@ -1,6 +1,7 @@
 from sklearn import linear_model, preprocessing, ensemble, pipeline
 from sklearn.grid_search import GridSearchCV 
 import numpy as np
+import pandas
 import multiprocessing
 import data_manipulation as dm
 import xgboost as xgb
@@ -262,22 +263,35 @@ class XGBoostModel(CitationModel):
         return np.maximum(self.xg_models[year - 1].predict(X), X[[self.base_feature]].values[:, 0])
 
 class RPPNetWrapper(CitationModel):
-    def __init__(self, X, histories, Y, model_save_path = None, maxiter=10):
-        self.name = "RPPNet-tf"
+    def __init__(self, X, histories, Y, model_save_path = None, gamma=.05,
+                 maxiter=10, with_features = True):
+        self.name = "RPPNet" if with_features else "RPP"
         self.num_years = Y.shape[1]
-        self.num_years = Y.shape[1]
-        self.rpp_net = rpp.RPPNet(0.1, model_save_path, maxiter=maxiter)
+        self.gamma = gamma
+        self._with_features = with_features
+        self.rpp_net = rpp.RPPNet(gamma, model_save_path, maxiter=maxiter)
         if not self.rpp_net.is_fit():
-            self.rpp_net.fit(X, histories)
+            if not with_features:
+                self.rpp_net.fit(pandas.DataFrame(np.zeros((X.shape[0], 0))), histories)
+            else:
+                self.rpp_net.fit(X, histories)
 
     def set_prediction_histories(self, histories):
         self._pred_histories = histories
 
     def predict(self, X, year):
-        return self.rpp_net.predict(X, self._pred_histories, year)[:,-1]
+        if not self._with_features:
+            return self.rpp_net.predict(pandas.DataFrame(np.zeros((X.shape[0], 0))),
+                                        self._pred_histories, year)[:, -1]
+        else:
+            return self.rpp_net.predict(X, self._pred_histories, year)[:, -1]
 
     def predict_all(self, X):
-        return self.rpp_net.predict(X, self._pred_histories, self.num_years)
+        if not self._with_features:
+            return self.rpp_net.predict(pandas.DataFrame(np.zeros((X.shape[0], 0))),
+                                        self._pred_histories, self.num_years)
+        else:
+            return self.rpp_net.predict(X, self._pred_histories, self.num_years)
 
 class RPPStub(CitationModel):
     def __init__(self, config, train_x, valid_x, test_x, with_features = True, custom_suffix = None):

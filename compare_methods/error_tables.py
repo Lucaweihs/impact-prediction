@@ -11,7 +11,7 @@ def mape_table(models, X, Y, starting_year = 1, name = None):
         mapes_table[i, :], errors_table[i, :] = models[i].mape_all_with_errors(X, Y)
     mapes_df = pd.DataFrame(data=mapes_table, index=[m.name for m in models], columns=pred_years)
     errors_df = pd.DataFrame(data=errors_table, index=[m.name for m in models], columns=pred_years)
-    if name != None:
+    if name is not None:
         mapes_df.to_csv("tables/" + name + ".tsv", sep="\t")
         errors_df.to_csv("tables/" + "errors-" + name + ".tsv", sep="\t")
     return (mapes_df, errors_df)

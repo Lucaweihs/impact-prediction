@@ -11,7 +11,7 @@ from scipy.special import gammaln as log_gamma
 from scipy.special import psi as digamma
 from sklearn import preprocessing
 
-CORES_TO_USE = multiprocessing.cpu_count()
+CORES_TO_USE = int(multiprocessing.cpu_count() * 3.0 / 4.0)
 OPTIM_METHOD = "L-BFGS-B"
 
 def _rpp_neg_loglike(alpha, beta, N, cite_diff_sum, const_wrt_alpha_beta):
@@ -28,16 +28,23 @@ def _rpp_loss(alpha, beta, N, cite_diff_sum, const_wrt_alpha_beta, gamma):
                   name="rpp_loss")
 
 def _rpp_one_layer_alpha_beta(x, keep_prob, num_features):
-    x_drop = tf.nn.dropout(x, keep_prob)
-    return _fc_layer(x_drop, num_features, 2, tf.nn.softplus, "out") + 0.001
+    #x_drop = tf.nn.dropout(x, keep_prob)
+    return _fc_layer(x, num_features, 2, tf.nn.softplus, "out") + 0.001
+
+def _rpp_one_layer_alpha_beta_bias_only(out_size):
+    with tf.name_scope('layer_out'):
+        alpha_beta = tf.nn.softplus(tf.Variable(tf.zeros([2]) + .1, name="b_out")) + .001
+        alpha_beta = tf.reshape(alpha_beta, [1, 2])
+        alpha_beta = tf.tile(alpha_beta, out_size)
+    return alpha_beta
 
 def _fc_layer(inputs, in_size, out_size, non_lin_func, id = ""):
     with tf.name_scope('layer_' + id):
         w = tf.Variable(
-            tf.zeros([in_size, out_size]),
+            tf.zeros([in_size, out_size]) + .1,
             name="w_" + id
         )
-        b = tf.Variable(tf.zeros([out_size]), name="b_" + id)
+        b = tf.Variable(tf.zeros([out_size]) + .1, name="b_" + id)
         fc = non_lin_func(tf.matmul(inputs, w) + b)
     return fc
 
@@ -54,7 +61,7 @@ def _rpp_multi_layer_alpha_beta(x, keep_prob, num_features):
     return fc_out
 
 def _rpp_train(loss):
-    optimizer = tf.train.AdamOptimizer()
+    optimizer = tf.train.AdamOptimizer(learning_rate=.01)
     global_step = tf.Variable(0, name='global_step', trainable=False)
     return optimizer.minimize(loss, global_step=global_step)
 
@@ -230,10 +237,15 @@ class RPP(object):
         return np.mean(preds, axis = 0)
 
 
-def _set_rpp_alpha_beta_and_optimize_mean_and_sd(rpp, alpha_beta, maxiter=5):
+def _set_rpp_alpha_beta_and_optimize_mean_and_sd(rpp, alpha_beta, maxiter):
     rpp.alpha = alpha_beta[0]
     rpp.beta = alpha_beta[1]
     return RPPNet.optimize_rpp_mean_sd(rpp, maxiter)
+
+def _set_rpp_alpha_beta(rpp, alpha_beta, maxiter):
+    rpp.alpha = alpha_beta[0]
+    rpp.beta = alpha_beta[1]
+    return rpp
 
 def _rpp_predict_in_n_years(rpp, n):
     return rpp.predict_n_years(n)
@@ -250,7 +262,7 @@ class RPPNet(object):
             self._model_save_path = os.path.abspath(model_save_path)
             if os.path.exists(self._tf_saver_file_path()):
                 self._scaler = pickle.load(open(self._scaler_file_path(), "rb"))
-                self._initialize_tf(len(self._scaler.mean_))
+                self._initialize_tf(0 if self._scaler is None else len(self._scaler.mean_))
                 self._is_fit = True
         else:
             self._model_save_path = model_save_path
@@ -295,17 +307,21 @@ class RPPNet(object):
     #         Warning("RPP alpha/beta optimization did not converge.")
     #     return result.x
 
-    def _optimize_means_sds(self, rpps, alpha_beta):
-        new_rpps = Parallel(n_jobs=CORES_TO_USE)(
+    def _optimize_means_sds(self, rpps, alpha_beta, maxiter=1000):
+        new_rpps = Parallel(n_jobs=CORES_TO_USE, batch_size=1, max_nbytes=None)(
             delayed(_set_rpp_alpha_beta_and_optimize_mean_and_sd)(rpps[i],
-                                                                  alpha_beta[i, :]) \
+                                                                  alpha_beta[i, :],
+                                                                  maxiter) \
             for i in range(len(rpps))
         )
         #new_rpps = [_set_rpp_alpha_beta_and_optimize_mean_and_sd(rpps[i], alpha_beta[i,:]) for i in range(len(rpps))]
         return new_rpps
 
     def predict(self, X, histories, num_years):
-        X_scaled = self._scaler.transform(X)
+        if self._num_features != 0:
+            X_scaled = self._scaler.transform(X)
+        else:
+            X_scaled = X.values
 
         rpps = [RPP(histories[i]) for i in range(len(histories))]
         sess = self._sess
@@ -315,7 +331,9 @@ class RPPNet(object):
                      self._keep_prob_ph: 1.0,
                      self._const_wrt_alpha_beta_ph: 0,
                      self._gamma_ph: self._gamma}
-        rpps = self._optimize_means_sds(rpps, sess.run(self._alpha_beta_op, feed_dict=feed_dict))
+        if X.shape[1] == 0:
+            feed_dict[self._out_size] = np.array([X.shape[0], 2])
+        rpps = self._optimize_means_sds(rpps, sess.run(self._alpha_beta_op, feed_dict=feed_dict), 10000)
 
         preds = np.array(Parallel(n_jobs=CORES_TO_USE)(
             delayed(_rpp_predict_in_n_years)(rpps[i], num_years) for i in range(len(rpps))))
@@ -326,26 +344,37 @@ class RPPNet(object):
     def _initialize_tf(self, num_features):
         if self._sess is not None:
             self._sess.close()
-        # Placeholders
-        self._X_ph = tf.placeholder("float", [None, num_features])
-        self._N_ph = tf.placeholder("float", [None])
-        self._cite_diff_sum_ph = tf.placeholder("float", [None])
-        self._const_wrt_alpha_beta_ph = tf.placeholder("float", [])
-        self._gamma_ph = tf.placeholder("float", [])
-        self._keep_prob_ph = tf.placeholder("float", [])
-        # Operations
-        self._alpha_beta_op = _rpp_one_layer_alpha_beta(self._X_ph,
-                                                          self._keep_prob_ph,
-                                                          num_features)
-        self._alpha_op = self._alpha_beta_op[:, 0]
-        self._beta_op = self._alpha_beta_op[:, 1]
-        self._loss_op = _rpp_loss(self._alpha_op, self._beta_op, self._N_ph,
-                                  self._cite_diff_sum_ph, self._const_wrt_alpha_beta_ph, self._gamma_ph)
-        self._train_op = _rpp_train(self._loss_op)
-        self._saver = tf.train.Saver()
-        self._init_op = tf.initialize_all_variables()
+        self._g = tf.Graph()
+        with self._g.as_default() as g:
+            with g.name_scope("g" + str(num_features)):
+                self._num_features = num_features
+                # Placeholders
+                self._X_ph = tf.placeholder("float", [None, num_features])
+                self._N_ph = tf.placeholder("float", [None])
+                self._cite_diff_sum_ph = tf.placeholder("float", [None])
+                self._const_wrt_alpha_beta_ph = tf.placeholder("float", [])
+                self._gamma_ph = tf.placeholder("float", [])
+                self._keep_prob_ph = tf.placeholder("float", [])
+                # Operations
+                if num_features != 0:
+                    self._alpha_beta_op = _rpp_one_layer_alpha_beta(self._X_ph,
+                                                                    self._keep_prob_ph,
+                                                                    num_features)
+                else:
+                    self._out_size = tf.placeholder(tf.int32, [2])
+                    self._alpha_beta_op = _rpp_one_layer_alpha_beta_bias_only(self._out_size)
+                self._alpha_op = self._alpha_beta_op[:, 0]
+                self._beta_op = self._alpha_beta_op[:, 1]
+                self._loss_op = _rpp_loss(self._alpha_op, self._beta_op, self._N_ph,
+                                          self._cite_diff_sum_ph,
+                                          self._const_wrt_alpha_beta_ph, self._gamma_ph)
+                self._train_op = _rpp_train(self._loss_op)
+                self._saver = tf.train.Saver()
+                self._init_op = tf.initialize_all_variables()
+                self._bias = [v for v in tf.all_variables() if 'layer_out/b_out' in v.name][0]
+        tf.reset_default_graph()
         # Start the session
-        self._sess = tf.Session()
+        self._sess = tf.Session(graph=g)
         if self._model_save_path is not None and \
                 os.path.exists(self._tf_saver_file_path()):
             self._saver.restore(self._sess, self._tf_saver_file_path())
@@ -360,37 +389,61 @@ class RPPNet(object):
 
     def fit(self, X, histories):
         assert (X.shape[0] == len(histories))
-        self._scaler = preprocessing.StandardScaler().fit(X)
-        X = self._scaler.transform(X)
-        self._initialize_tf(X.shape[1])
+        if X.shape[1] != 0:
+            self._scaler = preprocessing.StandardScaler().fit(X)
+            X = self._scaler.transform(X)
+            self._initialize_tf(X.shape[1])
+        else:
+            X = X.values
+            self._initialize_tf(0)
 
         rpps = [RPP(histories[i]) for i in range(len(histories))]
 
         k = 0
         N = np.array([rpp._N for rpp in rpps])
         const = np.mean([rpp._const for rpp in rpps])
-        feed_dict_train = {self._X_ph: X, self._N_ph: N, self._keep_prob_ph: .95, self._gamma_ph: self._gamma}
+        feed_dict_train = {self._X_ph: X, self._N_ph: N, self._keep_prob_ph: .95,
+                           self._gamma_ph: self._gamma}
+        if X.shape[1] == 0:
+            feed_dict_train[self._out_size] = np.array([X.shape[0], 2])
         sess = self._sess
-        while k == 0 or k < self.maxiter:
-            cite_diff_sum = np.array([rpp._cite_diff_sum_cache() for rpp in rpps])
-            mean_log_diff_sum = np.mean([rpp._log_diff_sum_cache() for rpp in rpps])
+        cite_diff_sum = np.array([rpp._cite_diff_sum_cache() for rpp in rpps])
+        mean_log_diff_sum = np.mean([rpp._log_diff_sum_cache() for rpp in rpps])
+        feed_dict_train[self._cite_diff_sum_ph] = cite_diff_sum
+        feed_dict_train[self._const_wrt_alpha_beta_ph] = const + mean_log_diff_sum
+        feed_dict_test = feed_dict_train.copy()
+        feed_dict_test[self._keep_prob_ph] = 1.0
 
-            feed_dict_train[self._cite_diff_sum_ph] = cite_diff_sum
-            feed_dict_train[self._const_wrt_alpha_beta_ph] = const + mean_log_diff_sum
-            feed_dict_test = feed_dict_train.copy()
-            feed_dict_test[self._keep_prob_ph] = 1.0
+        alpha_beta = sess.run(self._alpha_beta_op, feed_dict=feed_dict_test)
+        for i in range(len(rpps)):
+            rpps[i].alpha = alpha_beta[i, 0]
+            rpps[i].beta = alpha_beta[i, 1]
+        while k == 0 or k < self.maxiter:
             if k % 1 == 0:
                 print "Iteration " + str(k)
                 print "Current obj = " + str(sess.run(self._loss_op, feed_dict=feed_dict_test))
                 #alpha_beta = sess.run(self._alpha_beta_op, feed_dict=feed_dict_test)
                 #print "Current obj 2 = " + str(np.mean([rpps[i].value_new(alpha_beta[i,]) for i in range(len(rpps))]))
+
+            print "Optimizing means/sds"
+            rpps = self._optimize_means_sds(rpps,
+                                            sess.run(self._alpha_beta_op,
+                                                     feed_dict=feed_dict_test),
+                                            10)
+            cite_diff_sum = np.array([rpp._cite_diff_sum_cache() for rpp in rpps])
+            mean_log_diff_sum = np.mean([rpp._log_diff_sum_cache() for rpp in rpps])
+            feed_dict_train[self._cite_diff_sum_ph] = cite_diff_sum
+            feed_dict_train[self._const_wrt_alpha_beta_ph] = const + mean_log_diff_sum
+            feed_dict_test = feed_dict_train.copy()
+            feed_dict_test[self._keep_prob_ph] = 1.0
             print "Optimizing alpha/beta"
             for i in range(1000):
                 if i % 200 == 0:
-                    print "TF iter " + i + ", obj = " + str(sess.run(self._loss_op, feed_dict=feed_dict_test))
-                sess.run(self._train_op, feed_dict=feed_dict_test)
-            print "Optimizing means/sds"
-            rpps = self._optimize_means_sds(rpps, sess.run(self._alpha_beta_op, feed_dict=feed_dict_test))
+                    print "TF iter " + str(i) + ", obj = " + str(sess.run(self._loss_op,
+                                                                          feed_dict=feed_dict_test))
+                    print "Current bias = " + str(sess.run(self._bias, feed_dict_test))
+                sess.run(self._train_op, feed_dict=feed_dict_train)
+
             k += 1
         self._is_fit = True
         if self._model_save_path is not None:
