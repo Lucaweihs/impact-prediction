@@ -1,3 +1,18 @@
+import numpy as np
+
+def mape_with_error(preds, truth):
+    assert (not np.any(truth == 0))
+    abs_diffs = np.abs((preds - truth) / (1.0 * truth))
+    mape = np.mean(abs_diffs, axis=0)
+    sd = np.sqrt(np.var(abs_diffs, axis=0) / abs_diffs.shape[0])
+    return (mape, sd)
+
+def mape(preds, truth):
+    assert (not np.any(truth == 0))
+    abs_diffs = np.abs((preds - truth) / (1.0 * truth))
+    mape = np.mean(abs_diffs, axis=0)
+    return mape
+
 def n_arg_max(l, n):
   return [v[1] for v in sorted(zip(l, range(len(l))), key=lambda x: -x[0])[:n]]
 

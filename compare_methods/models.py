@@ -9,6 +9,7 @@ import multiprocessing as mp
 import os
 import cPickle as pickle
 import rpp
+from misc_functions import mape, mape_with_error
 
 class CitationModel:
     def predict(self, X, year):
@@ -21,29 +22,16 @@ class CitationModel:
         return np.array(preds).T
 
     def mape(self, X, y, year):
-        return self._mape_with_error(self.predict(X, year), y)
-
-    def _mape_with_error(self, preds, truth):
-        assert(not np.any(truth == 0))
-        abs_diffs = np.abs((preds - truth) / (1.0 * truth))
-        mape = np.mean(abs_diffs, axis=0)
-        sd = np.sqrt(np.var(abs_diffs, axis=0) / abs_diffs.shape[0])
-        return (mape, sd)
-
-    def _mape(self, preds, truth):
-        assert (not np.any(truth == 0))
-        abs_diffs = np.abs((preds - truth) / (1.0 * truth))
-        mape = np.mean(abs_diffs, axis=0)
-        return mape
+        return mape_with_error(self.predict(X, year), y)
 
     def mape_with_error(self, X, y, year):
-        return self._mape_with_error(self.predict(X, year), y)
+        return mape_with_error(self.predict(X, year), y)
 
     def mape_all(self, X, Y):
-        return self._mape(self.predict_all(X), Y.values)
+        return mape(self.predict_all(X), Y.values)
 
     def mape_all_with_errors(self, X, Y):
-        return self._mape_with_error(self.predict_all(X), Y.values)
+        return mape_with_error(self.predict_all(X), Y.values)
 
 class ConstantModel(CitationModel):
     def __init__(self, X, Y, base_feature):
@@ -101,7 +89,6 @@ class PlusKBaselineModel(CitationModel):
             self.k = lin_model.fit(new_x.reshape((len(new_x), 1)), new_y).coef_[0]
         else:
             self.k = k
-        print "Plus-k model has constant k = " + str(self.k)
 
     def predict(self, X, year):
         return X[[self.base_feature]].values[:,0] + year * self.k
