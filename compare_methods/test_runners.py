@@ -95,8 +95,8 @@ def run_tests(config):
         rpp_suffix = pickle_suffix.split(".")[0]
         rpp_net = RPPNetWrapper(train_x, train_histories, train_y, "data/rpp-tf-" + rpp_suffix, maxiter=17, gamma=.1)
         rpp_net_without = RPPNetWrapper(train_x, train_histories, train_y, "data/rpp-tf-none-" + rpp_suffix, maxiter=4, gamma=.7, with_features=False)
-        #ml_models.insert(0, rpp_net)
-        #ml_models.insert(0, rpp_net_without)
+        ml_models.insert(0, rpp_net)
+        ml_models.insert(0, rpp_net_without)
         #rpp_with = RPPStub(config, train_x, valid_x, test_x)
         #rpp_without = RPPStub(config, train_x, valid_x, test_x, False)
         #ml_models.insert(0, rpp_with)

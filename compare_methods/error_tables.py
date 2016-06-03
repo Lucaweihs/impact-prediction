@@ -7,7 +7,7 @@ def mape_tables_for_models(model_names, preds_map, y_map, starting_year = 1, suf
 
     tables = {}
     for data_set_type in data_set_types:
-        preds_list = [preds_map[k][data_set_type] for k in preds_map.keys()]
+        preds_list = [preds_map[k][data_set_type] for k in model_names]
         name = "mape-" + data_set_type + ("-" + suffix if suffix != "" else "")
         tables[data_set_type] = mape_table(model_names, preds_list,
                                            y_map[data_set_type], starting_year, name)
@@ -37,7 +37,7 @@ def rsquared_tables_for_models(model_names, preds_map, y_map, base_values_map,
     pa_rsq_tables = {}
     rsq_tables = {}
     for data_set_type in data_set_types:
-        preds_list = [preds_map[k][data_set_type] for k in preds_map.keys()]
+        preds_list = [preds_map[k][data_set_type] for k in model_names]
         rsq_map = rsquared_tables(model_names, preds_list, y_map[data_set_type],
                                                 base_values_map[data_set_type], starting_year, suffix)
 
