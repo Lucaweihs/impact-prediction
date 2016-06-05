@@ -12,3 +12,5 @@ misc.xml
 .DS_Store
 *~
 *.tsv
+no_commit/*
+*.prof

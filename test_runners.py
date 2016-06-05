@@ -74,9 +74,6 @@ def run_tests(config):
 
     protocol = pickle.HIGHEST_PROTOCOL
 
-    print("Training constant model.\n")
-    constant = ConstantModel(train_x, train_y, base_feature)
-
     print("Training optimal plus fixed k model.")
     fixed_k_optimal = PlusKBaselineModel(train_x, train_y, base_feature)
     print "Plus-k model has constant k = " + str(fixed_k_optimal.k) + "\n"
@@ -111,7 +108,7 @@ def run_tests(config):
     else:
         gb = pickle.load(open("data/gb-" + pickle_suffix, "rb"))
 
-    baseline_models = [constant, fixed_k_optimal, simple_linear]
+    baseline_models = [fixed_k_optimal, simple_linear]
     ml_models = [lasso, rf, gb]
 
     if config.doc_type == "paper":
@@ -121,10 +118,6 @@ def run_tests(config):
         rpp_net_without = RPPNetWrapper(train_x, train_histories, train_y, "data/rpp-tf-none-" + rpp_suffix, maxiter=4, gamma=.7, with_features=False)
         ml_models.insert(0, rpp_net)
         ml_models.insert(0, rpp_net_without)
-        #rpp_with = RPPStub(config, train_x, valid_x, test_x)
-        #rpp_without = RPPStub(config, train_x, valid_x, test_x, False)
-        #ml_models.insert(0, rpp_with)
-        #ml_models.insert(0, rpp_without)
 
     print("Generating predictions for training, validation, and test sets.\n")
     all_models = ml_models + baseline_models
@@ -216,8 +209,8 @@ def run_tests(config):
             best_worst_parsq.loc[name] = rsq_err_worst_and_best_removed(all_preds[name]["test"],
                                                                         base_values_map["test"], test_y, 50, 50)
         plot_r_squared(best_worst_parsq, "removed-rsq-test-" + plot_suffix,
-                       colors=[baseline_colors[2]] + [ml_colors[i] for i in [2, 0, 1, 4]],
-                       markers=[baseline_markers[2]] + [ml_markers[i] for i in [2, 0, 1, 4]])
+                       colors=[baseline_colors[1]] + [ml_colors[i] for i in [2, 1, 0, 4]],
+                       markers=[baseline_markers[1]] + [ml_markers[i] for i in [2, 1, 0, 4]])
 
     print("Median Absolute % Error of GBRT at 10 years:")
     last_year = Y.shape[1]
