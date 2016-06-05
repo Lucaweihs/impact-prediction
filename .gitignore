@@ -11,3 +11,4 @@ misc.xml
 *.out
 .DS_Store
 *~
+*.tsv

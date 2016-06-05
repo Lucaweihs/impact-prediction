@@ -10,9 +10,9 @@ from joblib import Parallel, delayed
 from scipy.special import gammaln as log_gamma
 from scipy.special import psi as digamma
 from sklearn import preprocessing
+import warnings
 
 CORES_TO_USE = int(multiprocessing.cpu_count() * 3.0 / 4.0)
-OPTIM_METHOD = "L-BFGS-B"
 
 def _rpp_neg_loglike(alpha, beta, N, cite_diff_sum, const_wrt_alpha_beta):
     return tf.reduce_mean(-(const_wrt_alpha_beta + alpha * tf.log(beta) -
@@ -65,6 +65,61 @@ def _rpp_train(loss):
     global_step = tf.Variable(0, name='global_step', trainable=False)
     return optimizer.minimize(loss, global_step=global_step)
 
+def _nan_or_inf(x):
+    return np.isnan(x) or np.isinf(x)
+
+def _line_search(init, obj, direction, lower_bounds, upper_bounds, eta):
+    direction = eta * direction / np.linalg.norm(direction)
+
+    ref_obj = obj(init)
+    cur_point = init + direction
+    iter = 0
+    while iter < 20:
+        if not np.any(np.logical_or(cur_point < lower_bounds, cur_point > upper_bounds)):
+            cur_obj = obj(cur_point)
+            if not _nan_or_inf(cur_obj) and cur_obj <= ref_obj:
+                break
+        iter += 1
+        direction /= 2.0
+        cur_point = init + direction
+
+    if _nan_or_inf(obj(cur_point)):
+        warnings.warn("Line search failed to find a valid point in bounds, returning" +
+                      " the initial point (" + str(init) + ", with obj = " +
+                      str(ref_obj))
+        return init, ref_obj
+
+    iter = 0
+    last_obj = obj(cur_point)
+    while iter < 20:
+        direction *= 2.0
+        cur_point = init + direction
+        cur_obj = obj(cur_point)
+        if (np.any(np.logical_or(cur_point < lower_bounds, cur_point > upper_bounds)) \
+            or _nan_or_inf(cur_obj) or cur_obj > last_obj):
+            direction /= 2.0
+            break
+        last_obj = cur_obj
+        iter += 1
+
+    return init + direction, obj(init + direction)
+
+def _gradient_descent(init, obj, grad, lower_bounds, upper_bounds, maxiter=1000, tol=10**-6, eta=1.0):
+    if np.any(init <= lower_bounds) or np.any(init >= upper_bounds):
+        raise Exception("Initial point must be on interior of bounds.")
+    last_obj = np.Inf
+    cur_obj = obj(init)
+    cur_point = init
+    iter = 0
+    while 1.0 - cur_obj / last_obj > tol and iter < maxiter:
+        iter += 1
+        cur_grad = grad(cur_point)
+        last_obj = cur_obj
+        cur_point, cur_obj = _line_search(cur_point, obj, -cur_grad,
+                                          lower_bounds, upper_bounds,
+                                          eta=eta)
+    return cur_point
+
 class RPP(object):
     def __init__(self, history):
         self._history = history
@@ -72,8 +127,11 @@ class RPP(object):
         self.beta = 12.0
         self.m = 10.0
         self._init_cum_hist_with_m = np.cumsum(np.hstack(((self.m,), history)))[:-1]
-        self._mean = 1.5
-        self._sd = 0.5
+
+        history_span = self._history_span(history)
+        self._mean, self._sd = self._mean_var_to_mu_sigma(
+            np.mean(history_span),
+            np.max([np.mean(history_span), 1]))
         self._cache = {}
 
         # Constants in the log-likelihood
@@ -82,6 +140,19 @@ class RPP(object):
         self._c_const = np.dot(np.log(self._init_cum_hist_with_m), history)
         self._d_const = np.sum(log_gamma(history + 1))
         self._const = self._c_const - self._d_const
+
+    def _history_span(self, history):
+        which_non_zero = np.where(history != 0)[0] + 1
+        if len(which_non_zero) == 0:
+            return (1, len(history))
+        else:
+            return (np.min(which_non_zero), np.max(which_non_zero))
+
+    def _mean_var_to_mu_sigma(self, mean, var):
+        a = np.sqrt(mean**4 / (mean**2 + var))
+        mu = np.log(a)
+        sigma = np.sqrt(2) * np.sqrt(np.log(mean / a))
+        return (mu, sigma)
 
     def _clear_cache(self):
         self._cache.clear()
@@ -284,31 +355,16 @@ class RPPNet(object):
             rpp.sd = x[1]
             return -np.array([rpp.mean_gradient(), rpp.sd_gradient()])
 
-        result = optimize.minimize(
-            obj,
-            np.array([rpp.mean, rpp.sd]),
-            method=OPTIM_METHOD,
-            jac=grad,
-            bounds=[(-1, None), (.1, None)],
-            options={"disp": False, "maxiter": maxiter})
-        if not result.success:
-            Warning("RPP mean/sd optimization did not converge.")
-        rpp.mean = result.x[0]
-        rpp.sd = result.x[1]
+        m = max(rpp.mean, -.99)
+        s = max(rpp.sd, .51)
+        result = _gradient_descent(np.array([m, s]), obj, grad,
+                              np.array([-1, .5]), np.array([np.Inf, np.Inf]), maxiter=maxiter, tol=10**-4, eta = .1)
+        rpp.mean = result[0]
+        rpp.sd = result[1]
         return rpp
 
-    # def _optimize_alpha_beta_params(self, params, grad, obj):
-    #     result = optimize.minimize(obj,
-    #                                params,
-    #                                method=OPTIM_METHOD,
-    #                                jac=grad,
-    #                                options={"disp": False, "maxiter": 10})
-    #     if not result.success:
-    #         Warning("RPP alpha/beta optimization did not converge.")
-    #     return result.x
-
     def _optimize_means_sds(self, rpps, alpha_beta, maxiter=1000):
-        new_rpps = Parallel(n_jobs=CORES_TO_USE, batch_size=1, max_nbytes=None)(
+        new_rpps = Parallel(n_jobs=CORES_TO_USE)(
             delayed(_set_rpp_alpha_beta_and_optimize_mean_and_sd)(rpps[i],
                                                                   alpha_beta[i, :],
                                                                   maxiter) \
@@ -337,7 +393,6 @@ class RPPNet(object):
 
         preds = np.array(Parallel(n_jobs=CORES_TO_USE)(
             delayed(_rpp_predict_in_n_years)(rpps[i], num_years) for i in range(len(rpps))))
-        #preds = [_rpp_predict_in_n_years(rpps[i], num_years) for i in range(len(rpps))]
 
         return preds
 

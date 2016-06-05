@@ -6,6 +6,28 @@ import data_manipulation as dm
 from error_tables import *
 from misc_functions import *
 
+def rsq_err_worst_and_best_removed(preds, base_values, Y, num_worst_remove, num_best_remove):
+    num_years = Y.shape[1]
+    errors_per_year = np.square(preds - Y.values)
+
+    inds_to_remove_per_year = []
+    for i in range(num_years):
+        baseline_errors = Y.values[:,i] - base_values
+        baseline_errors = np.square(baseline_errors - np.mean(baseline_errors))
+
+        best_inds = n_arg_max(baseline_errors * (1.0 - errors_per_year[:, i] / baseline_errors), num_best_remove)
+        worst_inds = n_arg_max(errors_per_year[:, i], num_worst_remove)
+        inds_to_remove_per_year.append(list(set(best_inds + worst_inds)))
+
+    r2_errors = np.zeros(num_years)
+    for i in range(num_years):
+        base_error = np.var(np.delete(Y.values[:,i] - base_values, inds_to_remove_per_year[i]))
+        errors = np.delete(errors_per_year[:, i], inds_to_remove_per_year[i])
+        error_mean = np.mean(errors)
+        r2_errors[i] = 1.0 - error_mean / base_error
+
+    return r2_errors
+
 def train_test_valid_predictions(models, train_x, valid_x, test_x,
                                  train_histories, valid_histories, test_histories):
     preds_map = {}
@@ -33,6 +55,7 @@ def model_names(models):
     return [model.name for model in models]
 
 def run_tests(config):
+    print("Reading data.\n")
     X = dm.read_data(config.features_path)
     Y = dm.read_data(config.responses_path)
     Y = Y.select(lambda x: config.measure in x.lower(), axis=1)
@@ -79,6 +102,7 @@ def run_tests(config):
         dump_pickle_with_zip(rf, rf_path)
     else:
         rf = read_pickle_with_zip(rf_path)
+    rf.set_verbose(0)
 
     print("Training gradient boost model.\n")
     if not os.path.exists("data/gb-" + pickle_suffix):
@@ -102,7 +126,7 @@ def run_tests(config):
         #ml_models.insert(0, rpp_with)
         #ml_models.insert(0, rpp_without)
 
-    print("Generating predictions for training, validation, and test sets.")
+    print("Generating predictions for training, validation, and test sets.\n")
     all_models = ml_models + baseline_models
     all_preds = train_test_valid_predictions(all_models, train_x, valid_x, test_x,
                                              train_histories, valid_histories, test_histories)
@@ -121,7 +145,7 @@ def run_tests(config):
     num_ml = len(ml_models)
     np.random.seed(23498)
     colors = cm.rainbow(np.linspace(0, 1, 12))
-    markers = np.array(['o', 'v', '^', '<', '>', '8', 's', 'p', '*', 'h', 'H', 'D', 'd'])
+    markers = np.array(["o", "v", "^", "<", ">", "8", "s", "p", "*", "h", "H", "D", "d"])
     np.random.shuffle(colors)
     np.random.shuffle(markers)
     baseline_colors = list(colors[range(num_baseline)])
@@ -185,19 +209,40 @@ def run_tests(config):
                    colors=baseline_colors + ml_colors,
                    markers=baseline_markers + ml_markers)
 
-    year = Y.shape[1]
+    if config.doc_type == "paper":
+        model_names = ["SM", "LAS", "RPPNet", "RPP", "GBRT"]
+        best_worst_parsq = pa_rsq_map["test"].loc[model_names].copy()
+        for name in model_names:
+            best_worst_parsq.loc[name] = rsq_err_worst_and_best_removed(all_preds[name]["test"],
+                                                                        base_values_map["test"], test_y, 50, 50)
+        plot_r_squared(best_worst_parsq, "removed-rsq-test-" + plot_suffix,
+                       colors=[baseline_colors[2]] + [ml_colors[i] for i in [2, 0, 1, 4]],
+                       markers=[baseline_markers[2]] + [ml_markers[i] for i in [2, 0, 1, 4]])
 
+    print("Median Absolute % Error of GBRT at 10 years:")
+    last_year = Y.shape[1]
+    gbrt_preds = all_preds["GBRT"]["test"][:, last_year - 1]
+    gbrt_errors = np.abs((gbrt_preds - test_y.values[:, last_year - 1]) / test_y.values[:, last_year - 1])
+    print(str(np.median(gbrt_errors)) + "\n")
+    print("Mean Absolute % Error of GBRT at 10 years:")
+    print(str(np.mean(gbrt_errors)) + "\n")
+
+    print("Generating mape per count/age plots.\n")
     ape_scatter_file_name = "ape-" + config.full_suffix
-    plot_ape_scatter(gb, test_x, test_y.values[:, year - 1], year, config.age_feature, ape_scatter_file_name, heat_map=False)
-    plot_ape_scatter(gb, test_x, test_y.values[:, year - 1], year, config.age_feature, ape_scatter_file_name, heat_map=True)
+    plot_ape_scatter(all_preds["GBRT"]["test"][:, last_year - 1], test_x[[config.age_feature]].values[:,0],
+                     test_y.values[:, last_year - 1], config.age_feature, ape_scatter_file_name, heat_map=False)
+    plot_ape_scatter(all_preds["GBRT"]["test"][:, last_year - 1], test_x[[config.age_feature]].values[:, 0],
+                     test_y.values[:, last_year - 1], config.age_feature, ape_scatter_file_name, heat_map=True)
 
     mape_plot_file_name = "mape_per_count_gb-" + config.full_suffix
-    plot_mape_per_count(gb, test_x, test_y.values[:, year - 1], year, base_feature, mape_plot_file_name)
+    plot_mape_per_count(all_preds["GBRT"]["test"][:, last_year - 1], test_x[[config.base_feature]].values[:,0],
+                     test_y.values[:, last_year - 1], config.base_feature, mape_plot_file_name)
 
     mape_plot_file_name = "mape_per_age_gb-" + config.full_suffix
-    plot_mape_per_count(gb, test_x, test_y.values[:, year - 1], year, config.age_feature, mape_plot_file_name)
+    plot_mape_per_count(all_preds["GBRT"]["test"][:, last_year - 1], test_x[[config.age_feature]].values[:,0],
+                     test_y.values[:, last_year - 1], config.age_feature, mape_plot_file_name)
 
     if config.doc_type == "paper":
         mape_plot_file_name = "mape_per_age_rpp-" + config.full_suffix
-        rpp_net.set_prediction_histories(test_histories)
-        plot_mape_per_count(rpp_net, test_x, test_y.values[:, year - 1], year, config.age_feature, mape_plot_file_name)
+        plot_mape_per_count(all_preds["RPPNet"]["test"][:, last_year - 1], test_x[[config.age_feature]].values[:,0],
+                     test_y.values[:, last_year - 1], config.age_feature, mape_plot_file_name)

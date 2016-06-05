@@ -20,5 +20,5 @@ if not os.path.exists(config.train_inds_path):
     command = "python split_data.py author " + measure + ' "' + filters_string + '"'
     os.system(command)
 
-runTests(config)
+run_tests(config)
 

@@ -83,10 +83,12 @@ class PlusKBaselineModel(CitationModel):
 
             new_x = np.concatenate(tuple(new_xs))
             new_y = np.concatenate(tuple(new_ys))
-
-            lin_model = linear_model.SGDRegressor(loss="huber", epsilon = 1, penalty="none",
+            random_state = np.random.get_state() # Prior random state
+            np.random.seed(23498) # To make sure SGD always returns the same result
+            lin_model = linear_model.SGDRegressor(loss="huber", epsilon=1, penalty="none",
                                                 fit_intercept=False)
             self.k = lin_model.fit(new_x.reshape((len(new_x), 1)), new_y).coef_[0]
+            np.random.set_state(random_state) # Reset to prior state
         else:
             self.k = k
 
@@ -140,6 +142,10 @@ class RandomForestModel(CitationModel):
 
     def predict(self, X, year):
         return np.maximum(self.rf_models[year - 1].predict(X), X[[self.base_feature]].values[:,0])
+
+    def set_verbose(self, level):
+        for rf_model in self.rf_models:
+            rf_model.set_params(verbose=level)
 
 class GradientBoostModel(CitationModel):
     def __init__(self, X, Y, base_feature,
