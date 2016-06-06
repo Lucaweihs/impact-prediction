@@ -103,7 +103,7 @@ def run_tests(config):
 
     print("Training gradient boost model.\n")
     if not os.path.exists("data/gb-" + pickle_suffix):
-        gb = GradientBoostModel(train_x, train_y, base_feature)
+        gb = GradientBoostModel(train_x, train_y, base_feature, tune_with_cv=True)
         pickle.dump(gb, open("data/gb-" + pickle_suffix, "wb"), protocol)
     else:
         gb = pickle.load(open("data/gb-" + pickle_suffix, "rb"))
@@ -182,9 +182,9 @@ def run_tests(config):
     print("Generating R^2 / PA-R^2 plots.\n")
     # PA-R^2 tables and plots
     rsq_test_name = "rsq-test-ml-" + plot_suffix
-    plot_r_squared(pa_rsq_map["test"].loc[ml_model_names], rsq_test_name,
+    plot_r_squared(pa_rsq_map["test"].loc[ml_model_names], "pa-" + rsq_test_name,
                    ml_colors, ml_markers)
-    plot_r_squared(rsq_map["test"].loc[ml_model_names], "inflated-" + rsq_test_name,
+    plot_r_squared(rsq_map["test"].loc[ml_model_names], "regular-" + rsq_test_name,
                    ml_colors, ml_markers, xlabel="$R^2$")
 
     rsq_test_name = "rsq-test-baseline-" + plot_suffix
@@ -192,13 +192,13 @@ def run_tests(config):
     model_names = baseline_model_names + list_inds(ml_model_names, top1_ml)
     colors = baseline_colors + list_inds(ml_colors, top1_ml)
     markers = baseline_markers + list_inds(ml_markers, top1_ml)
-    plot_r_squared(pa_rsq_map["test"].loc[model_names], rsq_test_name,
+    plot_r_squared(pa_rsq_map["test"].loc[model_names], "pa-" + rsq_test_name,
                    colors, markers)
-    plot_r_squared(rsq_map["test"].loc[model_names], "inflated-" + rsq_test_name,
+    plot_r_squared(rsq_map["test"].loc[model_names], "regular-" + rsq_test_name,
                    colors, markers, xlabel="$R^2$")
 
-    rsq_train_name = "rsq-train-" + plot_suffix
-    plot_r_squared(pa_rsq_map["test"].loc[all_model_names], rsq_train_name,
+    rsq_train_name = "pa-rsq-train-" + plot_suffix
+    plot_r_squared(pa_rsq_map["test"].loc[all_model_names], "pa-" + rsq_train_name,
                    colors=baseline_colors + ml_colors,
                    markers=baseline_markers + ml_markers)
 
@@ -208,7 +208,7 @@ def run_tests(config):
         for name in model_names:
             best_worst_parsq.loc[name] = rsq_err_worst_and_best_removed(all_preds[name]["test"],
                                                                         base_values_map["test"], test_y, 50, 50)
-        plot_r_squared(best_worst_parsq, "removed-rsq-test-" + plot_suffix,
+        plot_r_squared(best_worst_parsq, "outlier-removed-pa-rsq-test-" + plot_suffix,
                        colors=[baseline_colors[1]] + [ml_colors[i] for i in [2, 1, 0, 4]],
                        markers=[baseline_markers[1]] + [ml_markers[i] for i in [2, 1, 0, 4]])
 

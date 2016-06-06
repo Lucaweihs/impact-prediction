@@ -4,10 +4,7 @@ import numpy as np
 import pandas
 import multiprocessing
 import data_manipulation as dm
-import xgboost as xgb
 import multiprocessing as mp
-import os
-import cPickle as pickle
 import rpp
 from misc_functions import mape, mape_with_error
 
@@ -180,16 +177,6 @@ def mape_error(preds, true_d_matrix):
     return 'mape', np.mean(np.abs(preds - true_d_matrix.get_label()) / (1.0 * true_d_matrix.get_label()))
 
 
-def set_n_estimators_by_cv(model, X, y, cv_folds=5, early_stopping_rounds=50):
-    model.set_params(n_estimators=1000, nthread=mp.cpu_count())
-    xg_train = xgb.DMatrix(X, label=y)
-    params = model.get_params()
-    cv_result = xgb.cv(params, xg_train, num_boost_round=params['n_estimators'],
-                      nfold=cv_folds, feval=mape_error,
-                      early_stopping_rounds=early_stopping_rounds, verbose_eval=True)
-    model.set_params(n_estimators=cv_result.shape[0])
-
-
 def mape_scorer(estimator, X, y):
     preds = estimator.predict(X)
     return float(-np.mean(np.abs(preds - y) / (1.0 * y)))
@@ -202,58 +189,6 @@ def search_with_parameters(model, params_to_search, X, y):
     gsearch.fit(X, y)
     print(gsearch.grid_scores_)
     model.set_params(**gsearch.best_params_)
-
-class XGBoostModel(CitationModel):
-    def __init__(self, X, Y, base_feature,
-                 params = {"learning_rate" : 0.01, "objective" : "reg:linear",
-                           "max_depth" : 6, "min_child_weight" : 1,
-                           "gamma" : 1.0, "subsample" : 0.8,
-                           "colsample_bytree" : 0.8},
-                 tune_with_cv = True):
-        params['nthread'] = 0
-        self.name = "XGB"
-        self.base_feature = base_feature
-        self.num_years = Y.shape[1]
-        self.params = params
-        self.xg_models = []
-        for i in range(Y.shape[1]):
-            xgb_model = xgb.sklearn.XGBRegressor(**params)
-            if tune_with_cv:
-                self.__fit_model_by_cv(xgb_model, X, Y[[i]].values[:,0])
-            elif os.path.exists("data/xgb-params.pickle"):
-                params_list = pickle.load(open("data/xgb-params.pickle", "rb"))
-                xgb_model.set_params(**(params_list[i]))
-            else:
-                set_n_estimators_by_cv(xgb_model, X, Y[[i]].values[:,0])
-            xgb_model.set_params(nthread = mp.cpu_count())
-            xgb_model.fit(X, Y[[i]].values[:,0])
-            self.xg_models.append(xgb_model)
-
-    def __fit_model_by_cv(self, xgb_model, X, y):
-        xgb_model.set_params(nthread=0)
-        set_n_estimators_by_cv(xgb_model, X, y)
-
-        params1 = {'max_depth': [3, 4, 5, 6, 7],
-                   'min_child_weight': [1, 2, 4, 8]}
-
-        search_with_parameters(xgb_model, params1, X, y)
-
-        params2 = {'gamma': [0] + (10 ** np.linspace(-3, 0, 9)).tolist()}
-        search_with_parameters(xgb_model, params2, X, y)
-
-        xgb_model.set_params(nthread=0)
-        set_n_estimators_by_cv(xgb_model, X, y)
-
-        params3 = {'subsample': [i / 10.0 for i in range(6, 10)],
-                   'colsample_bytree': [i / 10.0 for i in range(6, 10)]}
-        search_with_parameters(xgb_model, params3, X, y)
-
-        params4 = {'reg_alpha': [0] + (10 ** np.linspace(-3, 2, 3)).tolist(),
-                   'reg_lambda': [0] + (10 ** np.linspace(-3, 2, 3)).tolist()}
-        search_with_parameters(xgb_model, params4, X, y)
-
-    def predict(self, X, year):
-        return np.maximum(self.xg_models[year - 1].predict(X), X[[self.base_feature]].values[:, 0])
 
 class RPPNetWrapper(CitationModel):
     def __init__(self, X, histories, Y, model_save_path = None, gamma=.05,

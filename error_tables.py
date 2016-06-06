@@ -51,14 +51,12 @@ def rsquared_tables(model_names, preds_list, Y, base_values, starting_year = 1,
     num_years = Y.shape[1]
     pred_years = range(starting_year, num_years + starting_year)
     errors_list = []
-    flawed_errors_list = []
     inds_to_remove = set()
     for i in range(len(model_names)):
         preds = preds_list[i]
         errors_per_year = np.square(preds - Y.values)
         inds_to_remove |= set([np.argmax(errors_per_year[:, i]) for i in range(num_years)])
         errors_list.append(errors_per_year)
-        flawed_errors_list.append(np.square(preds - np.mean(Y.values, axis=0)))
 
     if remove_outliers:
         inds_to_remove = list(inds_to_remove)
@@ -73,20 +71,16 @@ def rsquared_tables(model_names, preds_list, Y, base_values, starting_year = 1,
 
     r2_table = np.zeros((len(model_names), num_years))
     r2_inflated_table = np.zeros((len(model_names), num_years))
-    r2_flawed_table = np.zeros((len(model_names), num_years))
     for i in range(len(model_names)):
         errors_per_year = np.delete(errors_list[i], inds_to_remove, axis=0)
         error_means = np.mean(errors_per_year, axis=0)
         r2_table[i, :] = 1.0 - error_means / base_errors
         r2_inflated_table[i, :] = 1.0 - error_means / base_errors_inflated
-        r2_flawed_table[i, :] = np.mean(flawed_errors_list[i], axis=0) / base_errors_inflated
 
     r2_df = pd.DataFrame(data=r2_table, index=model_names, columns=pred_years)
     r2_inflated_df = pd.DataFrame(data=r2_inflated_table, index=model_names, columns=pred_years)
-    r2_flawed_df = pd.DataFrame(data=r2_flawed_table, index=model_names, columns=pred_years)
 
     if suffix is not None:
         r2_df.to_csv("tables/rsq-" + remove_string + suffix + ".tsv", sep="\t")
         r2_inflated_df.to_csv("tables/" + "inflated-rsq-" + remove_string + suffix + ".tsv", sep="\t")
-        r2_flawed_df.to_csv("tables/" + "flawed-rsq-" + remove_string + suffix + ".tsv", sep="\t")
-    return {"rsquare" : r2_df, "rsquare-inflated" : r2_inflated_df, "rsquare-flawed" : r2_flawed_df}
+    return {"rsquare" : r2_df, "rsquare-inflated" : r2_inflated_df}
