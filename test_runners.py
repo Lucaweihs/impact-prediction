@@ -197,7 +197,7 @@ def run_tests(config):
     plot_r_squared(rsq_map["test"].loc[model_names], "regular-" + rsq_test_name,
                    colors, markers, xlabel="$R^2$")
 
-    rsq_train_name = "pa-rsq-train-" + plot_suffix
+    rsq_train_name = "rsq-train-" + plot_suffix
     plot_r_squared(pa_rsq_map["test"].loc[all_model_names], "pa-" + rsq_train_name,
                    colors=baseline_colors + ml_colors,
                    markers=baseline_markers + ml_markers)

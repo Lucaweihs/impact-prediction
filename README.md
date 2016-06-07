@@ -12,7 +12,7 @@ git clone git@github.com:Lucaweihs/impact-prediction.git
 
 ## Getting the data
 
-Data can be downloaded manually as individual files or, if you are just interested in producing predictions, just those files necessary to train models and produce predictions can be automatically downloaded using the download_data.py script. To use the download_data.py script run the commands:
+Data can be downloaded manually as individual files or, if you are just interested in producing predictions, just those files necessary to train models and produce predictions can be automatically downloaded and extracted using the download_data.py script. To use the download_data.py script run the commands:
 
 ```bash
 # Enter the impact prediction directory
@@ -25,7 +25,13 @@ We now describe the individual files and provide URLs to download them manually.
 
 ### Data file descriptions
 
-These data span the years between 1975 and 2015. The features are generated using information available only in 2005 and we train models to predict in the years 2006-2015. The data comes in two formats, tab separated values files (.tsv) and json files (.json).
+These data span the years between 1975 and 2015. The features are generated using information available only in 2005 and we train models to predict in the years 2006-2015. The data comes in two formats, tab separated values files (.tsv) and json files (.json); all data are compressed with gzip so be sure to unzip them (gzip -d filename). Authors are identified by their name and papers by a unique identifier. The paper ids correspond to those used by [Semanic Scholar](https://www.semanticscholar.org/) and more information about a paper with a given paper id can be found by using Semantic Scholar. For example, one can find more information about the paper with id 
+
+214899d16f39a494c3e69118c53a7b5877c0bbfc 
+
+by going to the URL:
+
+[www.semanticscholar.org/paper/214899d16f39a494c3e69118c53a7b5877c0bbfc](https://www.semanticscholar.org/paper/214899d16f39a494c3e69118c53a7b5877c0bbfc).
 
 #### Author names
 
@@ -35,7 +41,7 @@ authors-1975-2005-2015-2.tsv
 *Format:*
 Every line is the name of an author taken from a paper.
 
-*URL:*
+[Download link](https://s3-us-west-2.amazonaws.com/ai2-s2/lucaw/authors-1975-2005-2015-2.tsv.gz)
 
 #### Author features
 
@@ -45,7 +51,7 @@ authorFeatures-1975-2005-2015-2.tsv
 *Format:*
 The first line specifies the feature names and every other line represents the feature values for a particular author. These features are ordered to correspond to the authors from the "author names" file.
 
-*URL:*
+[Download link](https://s3-us-west-2.amazonaws.com/ai2-s2/lucaw/authorFeatures-1975-2005-2015-2.tsv.gz)
 
 #### Author responses
 
@@ -53,9 +59,9 @@ The first line specifies the feature names and every other line represents the f
 authorResponses-1975-2005-2015-2.tsv
 
 *Format:*
-Each line corresponds to the observed h-index of an author in the years between 2006 and 2015. These responses are ordered to correspond to the authors from the "author names" file.
+The first line specfies the column names, and are of the form total_citations_in_NUMBER or hindex_in_NUMBER. Here NUMBER is the number of years since 2006 so that if a particular row has a value of 5 in the hindex_in_5 column this means that the author corresponding to that row had an hindex of 5 in year 2006 + 5 = 2011. These responses are ordered to correspond to the authors from the "author names" file.
 
-*URL:*
+[Download link](https://s3-us-west-2.amazonaws.com/ai2-s2/lucaw/authorResponses-1975-2005-2015-2.tsv.gz)
 
 #### Author histories
 
@@ -65,11 +71,11 @@ authorHistories-hindex-1975-2005-2015-2.tsv
 *Format:*
 Every line corresponds to the h-index of an author since the beginning of their career until 2005. These histories are ordered to correspond to the authors from the "author names" file.
 
-*URL:*
-
 *Example:*
 If an author has a 5 year old career, by 2005, and their per-year h-index is 1,1,2,3,4. Then the line corresponding to said author would be
 1 1 2 3 4
+
+[Download link](https://s3-us-west-2.amazonaws.com/ai2-s2/lucaw/authorHistories-hindex-1975-2005-2015-2.tsv.gz)
  
 #### Paper ids
 
@@ -79,7 +85,7 @@ paperIds-1975-2005-2015-2.tsv
 *Format:*
 Each line corresponds to a single paper id. These ids are unique identifiers of papers.
 
-*URL:*
+[Download link](https://s3-us-west-2.amazonaws.com/ai2-s2/lucaw/paperIds-1975-2005-2015-2.tsv.gz)
 
 #### Paper features
 
@@ -89,7 +95,7 @@ paperFeatures-1975-2005-2015-2.tsv
 *Format:*
 The first line specifies the feature names and every other line represents the feature values for a particular paper. These features are ordered to correspond to the papers from the "paper ids" file.
 
-*URL:*
+[Download link](https://s3-us-west-2.amazonaws.com/ai2-s2/lucaw/paperFeatures-1975-2005-2015-2.tsv.gz)
 
 #### Paper responses
 
@@ -99,7 +105,7 @@ paperResponses-1975-2005-2015-2.tsv
 *Format:*
 Each line corresponds to the observed cumulative citation count of an author in the years between 2006 and 2015. These responses are ordered to correspond to the paper from the "paper ids" file.
 
-*URL:*
+[Download link](https://s3-us-west-2.amazonaws.com/ai2-s2/lucaw/paperResponses-1975-2005-2015-2.tsv.gz)
 
 #### Paper histories
 
@@ -109,32 +115,32 @@ paperHistories-1975-2005-2015-2.tsv
 *Format:*
 Same as for "author histories" but replacing authors with papers and the h-index with cumulative citation counts.
 
-*URL:*
+[Download link](https://s3-us-west-2.amazonaws.com/ai2-s2/lucaw/paperHistories-1975-2005-2015-2.tsv.gz)
 
 #### Citation graph
 
 *File name:*
-citationGraph-1975-2015.tsv
+citationGraph-1975-2015.json
 
 *Format:*
 Each line corresponds to a json dictionary with the following fields:
 * id - a paper id
 * cites - a list of the paper ids cited by id
 
-*URL:*
-
 *Notes:*
 The citation graph includes all papers published between 1975 and 2015.
+
+[Download link](https://s3-us-west-2.amazonaws.com/ai2-s2/lucaw/citationGraph-1975-2015.json.gz)
 
 #### Key citation graph
 
 *File name:*
-keyCitationGraph-1975-2015.tsv
+keyCitationGraph-1975-2015.json
 
 *Format:*
 Exactly as for the "citation graph" file but only includes key citations between papers.
 
-*URL:*
+[Download link](https://s3-us-west-2.amazonaws.com/ai2-s2/lucaw/keyCitationGraph-1975-2015.json.gz)
 
 #### Paper meta data
 
@@ -150,7 +156,7 @@ Every line is a json dictionary corresponding to a single paper with the followi
 * authors - a list of the papers authors.
 * venue - the venue where the paper was published.
 
-*URL:*
+[Download link](https://s3-us-west-2.amazonaws.com/ai2-s2/lucaw/paperIdToPaperData-1975-2015.json.gz)
 
 ## Code Dependencies
 
@@ -177,17 +183,17 @@ This project is written in Python 2.7.11 using the following packages, divided i
 - matplotlib
 - seaborn
 
-The majority of these come preinstalled on, or can be easily install through, any scientific python manager, e.g. [anaconda](https://www.continuum.io/downloads). Installing [TensorFlow](https://www.tensorflow.org/versions/r0.8/get_started/os_setup.html) requires some manual labor but is well described in the previous link.
+The majority of these come preinstalled on, or can be easily installed through, any scientific python manager, e.g. [anaconda](https://www.continuum.io/downloads). Installing [TensorFlow](https://www.tensorflow.org/versions/r0.8/get_started/os_setup.html) requires some manual labor but is well described in the previous link.
 
 ## Training and comparing models
 
-We assume you have downloaded the data using the download_data.py script described in the "Getting the data" section. To train a collection of models for h-index prediction and produce a collection of associated plots you can run the following command from within the impact-prediction directory:
+We should note that the training process can take many hours even on a strong machine, be prepared. That said, after a model has finished training we save the results so that you do not have to train it again. We assume you have downloaded the data using the download_data.py script described in the "Getting the data" section. To train a collection of models for h-index prediction and produce a collection of associated plots (placed in the ./plots directory) you can run the following command from within the impact-prediction directory:
 
 ```bash
 python author_predictions hindex author_hindex:4;author_age:5,12
 ```
 
-Beyond training models, this will produce a number of plots in the "plots" directory; these plots show the MAPE, R^2, and PA-R^2 metrics of the various trained algorithms on a training, validation, and testing datasets. These plots are named to be self-descriptive. The above code trains and tests only on those authors with an h-index >= 4 by 2005 and whose career length was between 5 and 12 years in 2005.
+The created plots show the MAPE, R^2, and PA-R^2 metrics of the various trained algorithms on training, validation, and testing datasets. These plots are named to be self-descriptive. The above code trains and tests only on those authors with an h-index >= 4 by 2005 and whose career length was between 5 and 12 years in 2005.
  
 To train models for paper citation prediction you can run the command:
  
