@@ -187,7 +187,15 @@ This project is written in Python 2.7.11 using the following packages, divided i
 - matplotlib
 - seaborn
 
-The majority of these come preinstalled on, or can be easily installed through, any scientific python manager, e.g. [anaconda](https://www.continuum.io/downloads). Installing [TensorFlow](https://www.tensorflow.org/versions/r0.8/get_started/os_setup.html) requires some manual labor but is well described in the previous link.
+The majority of these come preinstalled on, or can be easily installed through, any scientific python manager, e.g. [anaconda](https://www.continuum.io/downloads). If you have the anaconda package manager installed
+you can easily set up an "impact-prediction" environment containing the
+necessarily packages by running the command
+
+```
+conda env create -f environment.yml
+```
+
+in the terminal from within the project.
 
 ## Training and comparing models
 

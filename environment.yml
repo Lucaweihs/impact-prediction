@@ -1,0 +1,116 @@
+name: impact-prediction
+channels:
+- !!python/unicode
+  'defaults'
+dependencies:
+- !!python/unicode
+  'appnope=0.1.0=py27_0'
+- !!python/unicode
+  'backports=1.0=py27_0'
+- !!python/unicode
+  'configparser=3.5.0=py27_0'
+- !!python/unicode
+  'cycler=0.10.0=py27_0'
+- !!python/unicode
+  'decorator=4.0.11=py27_0'
+- !!python/unicode
+  'enum34=1.1.6=py27_0'
+- !!python/unicode
+  'freetype=2.5.5=2'
+- !!python/unicode
+  'functools32=3.2.3.2=py27_0'
+- !!python/unicode
+  'get_terminal_size=1.0.0=py27_0'
+- !!python/unicode
+  'icu=54.1=0'
+- !!python/unicode
+  'ipython=5.3.0=py27_0'
+- !!python/unicode
+  'ipython_genutils=0.2.0=py27_0'
+- !!python/unicode
+  'joblib=0.9.4=py27_0'
+- !!python/unicode
+  'libpng=1.6.27=0'
+- !!python/unicode
+  'matplotlib=2.0.0=np112py27_0'
+- !!python/unicode
+  'mkl=2017.0.1=0'
+- !!python/unicode
+  'numpy=1.12.1=py27_0'
+- !!python/unicode
+  'openssl=1.0.2k=1'
+- !!python/unicode
+  'pandas=0.19.2=np112py27_1'
+- !!python/unicode
+  'path.py=10.1=py27_0'
+- !!python/unicode
+  'pathlib2=2.2.1=py27_0'
+- !!python/unicode
+  'pexpect=4.2.1=py27_0'
+- !!python/unicode
+  'pickleshare=0.7.4=py27_0'
+- !!python/unicode
+  'pip=9.0.1=py27_1'
+- !!python/unicode
+  'prompt_toolkit=1.0.14=py27_0'
+- !!python/unicode
+  'ptyprocess=0.5.1=py27_0'
+- !!python/unicode
+  'pygments=2.2.0=py27_0'
+- !!python/unicode
+  'pyparsing=2.1.4=py27_0'
+- !!python/unicode
+  'pyqt=5.6.0=py27_2'
+- !!python/unicode
+  'python=2.7.13=0'
+- !!python/unicode
+  'python-dateutil=2.6.0=py27_0'
+- !!python/unicode
+  'pytz=2017.2=py27_0'
+- !!python/unicode
+  'qt=5.6.2=0'
+- !!python/unicode
+  'readline=6.2=2'
+- !!python/unicode
+  'scandir=1.5=py27_0'
+- !!python/unicode
+  'scikit-learn=0.18.1=np112py27_1'
+- !!python/unicode
+  'scipy=0.19.0=np112py27_0'
+- !!python/unicode
+  'seaborn=0.7.1=py27_0'
+- !!python/unicode
+  'setuptools=27.2.0=py27_0'
+- !!python/unicode
+  'simplegeneric=0.8.1=py27_1'
+- !!python/unicode
+  'sip=4.18=py27_0'
+- !!python/unicode
+  'six=1.10.0=py27_0'
+- !!python/unicode
+  'sqlite=3.13.0=0'
+- !!python/unicode
+  'subprocess32=3.2.7=py27_0'
+- !!python/unicode
+  'tk=8.5.18=0'
+- !!python/unicode
+  'traitlets=4.3.2=py27_0'
+- !!python/unicode
+  'wcwidth=0.1.7=py27_0'
+- !!python/unicode
+  'wheel=0.29.0=py27_0'
+- !!python/unicode
+  'zlib=1.2.8=3'
+- pip:
+  - appdirs==1.4.3
+  - backports.shutil-get-terminal-size==1.0.0
+  - funcsigs==1.0.2
+  - ipython-genutils==0.2.0
+  - mock==2.0.0
+  - packaging==16.8
+  - pbr==2.1.0
+  - prompt-toolkit==1.0.14
+  - protobuf==3.2.0
+  - tensorflow==1.0.1
+prefix: !!python/unicode '/Users/lucaweihs/anaconda/envs/impact-prediction'
+
