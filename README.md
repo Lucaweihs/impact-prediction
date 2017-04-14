@@ -1,8 +1,6 @@
 # Scientific Impact Prediction
 
-## Introduction
-
-This package computes citation predictions for papers and h-index predictions for authors using a dataset underlying the [Semantic Scholar](https://www.semanticscholar.org/) search service created by [AI2](http://allenai.org/). Here we describe how to acquire the data to train a collection of regression models and produce a collection of plots showing their relative performance. 
+This package computes citation predictions for papers and h-index predictions for authors using a dataset underlying the [Semantic Scholar](https://www.semanticscholar.org/) search service created by [AI2](http://allenai.org/). Here we describe how to acquire the data to train a collection of regression models and produce a collection of plots showing their relative performance.
 
 If you would like to simply access the data and are uninterested in running the code then skip to the "Getting the data" section. Otherwise you will want to first clone this repository to a local directory:
 
@@ -10,7 +8,13 @@ If you would like to simply access the data and are uninterested in running the 
 git clone git@github.com:Lucaweihs/impact-prediction.git
 ```
 
-## Getting the data
+### Table of Contents
+1. [Getting the data](#getting-data)
+2. [Code dependecies](#code-dependencies)
+3. [Features used in prediction](#features)
+
+
+## Getting the data <a name="getting-data"></a>
 
 Data can be downloaded manually as individual files or, if you are just interested in producing predictions, just those files necessary to train models and produce predictions can be automatically downloaded and extracted using the download_data.py script. To use the download_data.py script run the commands:
 
@@ -25,9 +29,9 @@ We now describe the individual files and provide URLs to download them manually.
 
 ### Data file descriptions
 
-These data span the years between 1975 and 2015. The features are generated using information available only in 2005 and we train models to predict in the years 2006-2015. The data comes in two formats, tab separated values files (.tsv) and json files (.json); all data are compressed with gzip so be sure to unzip them (gzip -d filename). Authors are identified by their name and papers by a unique identifier. The paper ids correspond to those used by [Semanic Scholar](https://www.semanticscholar.org/) and more information about a paper with a given paper id can be found by using Semantic Scholar. For example, one can find more information about the paper with id 
+These data span the years between 1975 and 2015. The features are generated using information available only in 2005 and we train models to predict in the years 2006-2015. The data comes in two formats, tab separated values files (.tsv) and json files (.json); all data are compressed with gzip so be sure to unzip them (gzip -d filename). Authors are identified by their name and papers by a unique identifier. The paper ids correspond to those used by [Semanic Scholar](https://www.semanticscholar.org/) and more information about a paper with a given paper id can be found by using Semantic Scholar. For example, one can find more information about the paper with id
 
-214899d16f39a494c3e69118c53a7b5877c0bbfc 
+214899d16f39a494c3e69118c53a7b5877c0bbfc
 
 by going to the URL:
 
@@ -76,7 +80,7 @@ If an author has a 5 year old career, by 2005, and their per-year h-index is 1,1
 1 1 2 3 4
 
 [Download link](https://s3-us-west-2.amazonaws.com/ai2-s2/lucaw/authorHistories-hindex-1975-2005-2015-2.tsv.gz)
- 
+
 #### Paper ids
 
 *File name:*
@@ -158,7 +162,7 @@ Every line is a json dictionary corresponding to a single paper with the followi
 
 [Download link](https://s3-us-west-2.amazonaws.com/ai2-s2/lucaw/paperIdToPaperData-1975-2015.json.gz)
 
-## Code Dependencies
+## Code dependencies <a name="code-dependencies"></a>
 
 This project is written in Python 2.7.11 using the following packages, divided into several categories.
 
@@ -203,7 +207,7 @@ python paper_predictions.py citation "paper_citations:5"
 
 As above this will create a number of plots in the "plots" directory. Here the above command will only include those papers with >= 5 citations by 2005.
 
-## Features used in prediction
+## Features used in prediction <a name="features"></a>
 
 We have two sets of features used in our predictions, one for authors
 and one for papers. The features are listed below.

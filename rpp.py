@@ -12,7 +12,9 @@ from scipy.special import psi as digamma
 from sklearn import preprocessing
 import warnings
 
-CORES_TO_USE = int(multiprocessing.cpu_count() * 3.0 / 4.0)
+np.seterr(all='warn')
+
+CORES_TO_USE = multiprocessing.cpu_count()
 
 def _rpp_neg_loglike(alpha, beta, N, cite_diff_sum, const_wrt_alpha_beta):
     return tf.reduce_mean(-(const_wrt_alpha_beta + alpha * tf.log(beta) -
@@ -122,7 +124,7 @@ def _gradient_descent(init, obj, grad, lower_bounds, upper_bounds, maxiter=1000,
 
 class RPP(object):
     def __init__(self, history):
-        self._history = history
+        self._history = np.array(history, dtype=np.float64)
         self.alpha = 10.0
         self.beta = 12.0
         self.m = 10.0
@@ -178,7 +180,8 @@ class RPP(object):
         self._sd = sd
 
     def _lognorm_cdf(self, x, mean, sd):
-        return stats.norm.cdf(np.log(x), loc=mean, scale=sd)
+        with np.errstate(divide='ignore'):
+            return stats.norm.cdf(np.log(x), loc=mean, scale=sd)
 
     def _lognorm_cdf_diff(self, x, mean, sd):
         return self._lognorm_cdf(x, mean, sd) - self._lognorm_cdf(x - 1.0, mean, sd)
@@ -197,7 +200,8 @@ class RPP(object):
 
     def _pdf_diffs_cache(self):
         if not self._cache.has_key("pdf_diffs"):
-            pdf_vals = self._norm_pdf(np.log(np.arange(0, self._len_history + 1)), self.mean, self.sd)
+            with np.errstate(divide='ignore'):
+                pdf_vals = np.array(self._norm_pdf(np.log(np.arange(0, self._len_history + 1)), self.mean, self.sd))
             self._cache["pdf_diffs"] = pdf_vals[1:] - pdf_vals[:-1]
         return self._cache["pdf_diffs"]
 
@@ -219,7 +223,8 @@ class RPP(object):
         return self._cache["cite_diff_sum"]
 
     def _log_diff_sum(self, lognorm_cdf_diffs):
-        prods = np.log(lognorm_cdf_diffs) * self._history
+        with np.errstate(divide='ignore', invalid='ignore'):
+            prods = np.log(lognorm_cdf_diffs) * self._history
         prods[self._history == 0.0] = 0.0
         return np.sum(prods)
 
@@ -267,7 +272,7 @@ class RPP(object):
         lognorm_cdf_diffs = self._lognorm_cdf_diffs_cache()
         per_year_cite_over_diffs = self._history / lognorm_cdf_diffs
         per_year_cite_over_diffs[lognorm_cdf_diffs == 0] = np.Inf
-        per_year_cite_over_diffs[self._history == 0] = 0.0
+        per_year_cite_over_diffs[self._history == 0.0] = 0.0
         return per_year_cite_over_diffs
 
     def mean_gradient(self):
@@ -370,7 +375,7 @@ class RPPNet(object):
                                                                   maxiter) \
             for i in range(len(rpps))
         )
-        #new_rpps = [_set_rpp_alpha_beta_and_optimize_mean_and_sd(rpps[i], alpha_beta[i,:]) for i in range(len(rpps))]
+        #new_rpps = [_set_rpp_alpha_beta_and_optimize_mean_and_sd(rpps[i], alpha_beta[i,:], maxiter) for i in range(len(rpps))]
         return new_rpps
 
     def predict(self, X, histories, num_years):

@@ -112,22 +112,33 @@ def plot_ape_scatter(preds, base_values, y, base_feature, name=None, heat_map=Fa
         raise Exception("Invalid base feature.")
 
     base_values = base_values[non_zero_inds]
-    if heat_map:
-        xy_all = np.vstack([base_values, all_apes])
-        unique_bases = np.unique(base_values)
-        for base in unique_bases:
-            y = xy_all[:, xy_all[0,:] == base][1]
+    xy_all = np.vstack([base_values, all_apes])
+    unique_bases = np.unique(base_values)
+
+    max_ape = np.max(all_apes)
+    min_ape = np.min(all_apes)
+    for i in range(len(unique_bases)):
+        base = unique_bases[i]
+        y = xy_all[:, xy_all[0,:] == base][1]
+        if i % 2 == 0:
+            plt.text(base, np.max(y) + 0.15, "%.2f" % np.mean(np.abs(y)), ha='center', va='bottom', size=18)
+        else:
+            plt.text(base, np.min(y) - 0.2, "%.2f" % np.mean(np.abs(y)), ha='center', va='top', size=18)
+
+        if heat_map:
             z = gaussian_kde(y)(y)
             idx = z.argsort()
             y, z = y[idx], z[idx]
             plt.scatter(np.repeat(base, len(y)), y, c=cm.jet(z / np.max(z)), s=20, edgecolor='')
-    else:
-        plt.scatter(base_values, all_apes, s=20, edgecolor='')
+        else:
+            plt.scatter(np.repeat(base, len(y)), y, s=20, edgecolor='')
+
+
     plt.xlabel(xlab, fontsize=20)
     plt.ylabel("% Error after 10 Years", fontsize=20)
     plt.xscale(xscale)
-    plt.xlim(left=0)
-    plt.ylim(bottom=-1.5)
+    plt.xlim(left=0, right=np.max(base_values) + 1)
+    plt.ylim(top=max_ape + max(max_ape * 0.10, 0.3), bottom=min_ape + min(min_ape * 0.20, -0.5))
     reformat_axes()
     if name != None:
         if heat_map:

@@ -1,14 +1,28 @@
 import pandas
 import numpy as np
+import cPickle as pickle
+import os
 
 def read_data(file_path, header=0):
-    return pandas.read_csv(file_path, sep="\t", header=header)
+    if os.path.exists(file_path + ".pickle"):
+        with file(file_path + ".pickle", "r") as f:
+            df = pickle.load(f)
+    else:
+        df = pandas.read_csv(file_path, sep="\t", header=header)
+        with file(file_path + ".pickle", "w") as f:
+            pickle.dump(df, f, pickle.HIGHEST_PROTOCOL)
+    return df
 
 def read_histories(file_path):
+    if os.path.exists(file_path + ".pickle"):
+         with file(file_path + ".pickle", "r") as f:
+             return pickle.load(f)
     histories = []
     with open(file_path, "r") as f:
         for line in f:
             histories.append(np.array([int(i) for i in line.split(("\t"))]))
+    with file(file_path + ".pickle", "w") as f:
+        pickle.dump(histories, f, pickle.HIGHEST_PROTOCOL)
     return histories
 
 def get_train_valid_test_data(data, train_inds, valid_inds, test_inds):

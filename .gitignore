@@ -14,3 +14,4 @@ misc.xml
 *.tsv
 no_commit/*
 *.prof
+*_old*
